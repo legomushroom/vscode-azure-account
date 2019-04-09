@@ -5,57 +5,12 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as http from 'http';
-// import * as https from 'https';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { TokenResponse, AuthenticationContext } from 'adal-node';
-import { DEFAULT_CLIENT_ID } from './constants';
-import { IEnvironment, VSSaasEnvironment } from './azure-account';
-
-const redirectUrlADFS = 'http://127.0.0.1:9472/';
-
-export function isADFS(environment: IEnvironment) {
-	const u = url.parse(environment.activeDirectoryEndpointUrl);
-	const pathname = (u.pathname || '').toLowerCase();
-	return pathname === '/adfs' || pathname.startsWith('/adfs/');
-}
-
-// export async function checkRedirectServer(adfs: boolean) {
-// 	if (adfs) {
-// 		return true;
-// 	}
-// 	let timer: NodeJS.Timer | undefined;
-// 	const promise = new Promise<boolean>(resolve => {
-// 		const req = https.get({
-// 			...url.parse(`${}?state=3333,cccc`),
-// 		}, res => {
-// 			const key = Object.keys(res.headers)
-// 				.find(key => key.toLowerCase() === 'location');
-// 			const location = key && res.headers[key]
-// 			resolve(res.statusCode === 302 && typeof location === 'string' && location.startsWith('http://127.0.0.1:3333/callback'));
-// 		});
-// 		req.on('error', err => {
-// 			console.error(err);
-// 			resolve(false);
-// 		});
-// 		req.on('close', () => {
-// 			resolve(false);
-// 		});
-// 		timer = setTimeout(() => {
-// 			resolve(false);
-// 			req.abort();
-// 		}, 5000);
-// 	});
-// 	function cancelTimer() {
-// 		if (timer) {
-// 			clearTimeout(timer);
-// 		}
-// 	}
-// 	promise.then(cancelTimer, cancelTimer);
-// 	return promise;
-// }
+import { IEnvironment, VSSaasEnvironment } from './vscode-account';
 
 export async function login(clientId: string, environment: IEnvironment, adfs: boolean, tenantId: string, openUri: (url: string) => Promise<void>) {
 	const nonce = crypto.randomBytes(16).toString('base64');
@@ -65,7 +20,7 @@ export async function login(clientId: string, environment: IEnvironment, adfs: b
 		const port = await startServer(server);
 		const state = `${port},${encodeURIComponent(nonce)}`;
 		const redirectUrlAAD = `http://localhost:${port}/callback`;
-		const redirectUrl = adfs ? redirectUrlADFS : redirectUrlAAD;
+		const redirectUrl = redirectUrlAAD;
 
 		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&resource=${encodeURIComponent(environment.activeDirectoryResourceId)}&prompt=select_account`);
 
@@ -170,8 +125,6 @@ async function startServer(server: http.Server) {
 async function callback(nonce: string, reqUrl: url.Url): Promise<string> {
 	let error = reqUrl.query.error_description || reqUrl.query.error;
 
-	console.log(nonce, JSON.stringify(reqUrl), reqUrl.query.state, reqUrl.query.nonce);
-
 	if (!error) {
 		const state = reqUrl.query.state || '';
 		const receivedNonce = (state.split(',')[1] || '').replace(/ /g, '+');
@@ -203,6 +156,6 @@ async function tokenWithAuthorizationCode(clientId: string, environment: IEnviro
 }
 
 if (require.main === module) {
-	login(DEFAULT_CLIENT_ID, VSSaasEnvironment, false, 'common', async uri => console.log(`Open: ${uri}`))
+	login(VSSaasEnvironment.oauthAppId, VSSaasEnvironment, false, 'common', async uri => console.log(`Open: ${uri}`))
 		.catch(console.error);
 }

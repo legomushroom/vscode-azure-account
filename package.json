@@ -1,13 +1,13 @@
 {
   "name": "vscode-account",
   "displayName": "VSCode Account",
-  "description": "A common Sign-In and Subscription management extension for VS Code.",
+  "description": "A common Sign-In management extension for VS Code.",
   "license": "SEE LICENSE IN LICENSE.md",
   "icon": "images/Market_AzureAccount_128x.png",
   "repository": {
-    "url": "https://github.com/legomushroom/vscode-azure-account.git"
+    "url": "https://github.com/legomushroom/vscode-vscode-account.git"
   },
-  "homepage": "https://github.com/legomushroom/vscode-azure-account/blob/master/README.md",
+  "homepage": "https://github.com/legomushroom/vscode-vscode-account/blob/master/README.md",
   "galleryBanner": {
     "color": "#0072c6",
     "theme": "dark"
@@ -16,184 +16,45 @@
   "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
   "publisher": "ms-vscode",
   "engines": {
-    "vscode": "^1.31.0"
+    "vscode": "^1.21.0"
   },
   "categories": [
-    "Azure"
+    "Other"
   ],
   "keywords": [
-    "azure"
+    "vscode"
   ],
   "activationEvents": [
     "*",
-    "onCommand:azure-account.login",
-    "onCommand:azure-account.loginWithDeviceCode",
-    "onCommand:azure-account.logout",
-    "onCommand:azure-account.loginToCloud",
-    "onCommand:azure-account.selectSubscriptions",
-    "onCommand:azure-account.createAccount",
-    "onCommand:azure-account.openCloudConsoleLinux",
-    "onCommand:azure-account.openCloudConsoleWindows",
-    "onCommand:azure-account.uploadFileCloudConsole"
+    "onCommand:vscode-account.login",
+    "onCommand:vscode-account.logout"
   ],
   "main": "./dist/extension",
   "contributes": {
     "commands": [
       {
-        "command": "azure-account.login",
-        "title": "%azure-account.commands.login%",
-        "category": "%azure-account.commands.azure%"
+        "command": "vscode-account.login",
+        "title": "%vscode-account.commands.login%",
+        "category": "%vscode-account.commands.account%"
       },
       {
-        "command": "azure-account.loginWithDeviceCode",
-        "title": "%azure-account.commands.loginWithDeviceCode%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.logout",
-        "title": "%azure-account.commands.logout%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.loginToCloud",
-        "title": "%azure-account.commands.loginToCloud%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.selectSubscriptions",
-        "title": "%azure-account.commands.selectSubscriptions%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.createAccount",
-        "title": "%azure-account.commands.createAccount%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.openCloudConsoleLinux",
-        "title": "%azure-account.commands.openCloudConsoleLinux%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.openCloudConsoleWindows",
-        "title": "%azure-account.commands.openCloudConsoleWindows%",
-        "category": "%azure-account.commands.azure%"
-      },
-      {
-        "command": "azure-account.uploadFileCloudConsole",
-        "title": "%azure-account.commands.uploadFileCloudConsole%",
-        "category": "%azure-account.commands.azure%"
+        "command": "vscode-account.logout",
+        "title": "%vscode-account.commands.logout%",
+        "category": "%vscode-account.commands.account%"
       }
     ],
     "menus": {
-      "explorer/context": [
-        {
-          "command": "azure-account.uploadFileCloudConsole",
-          "when": "resourceScheme == file && !explorerResourceIsFolder && openCloudConsoleCount && openCloudConsoleCount != 0",
-          "group": "999_cloudConsole"
-        }
-      ],
-      "editor/title/context": [
-        {
-          "command": "azure-account.uploadFileCloudConsole",
-          "when": "resourceScheme == file && openCloudConsoleCount && openCloudConsoleCount != 0",
-          "group": "999_cloudConsole"
-        }
-      ]
+      "explorer/context": [],
+      "editor/title/context": []
     },
     "configuration": {
       "type": "object",
-      "title": "Azure configuration",
+      "title": "VSCode Account configuration",
       "properties": {
-        "azure.resourceFilter": {
-          "type": "array",
-          "default": null,
-          "description": "The resource filter, each element is a tenant id and a subscription id separated by a slash."
-        },
-        "azure.showSignedInEmail": {
+        "vscode-account.showSignedInEmail": {
           "type": "boolean",
           "default": true,
           "description": "Whether to show the email address (e.g., in the status bar) of the signed in account."
-        },
-        "azure.tenant": {
-          "type": "string",
-          "default": "",
-          "description": "A specific tenant to sign in to. The default is to sign in to the common tenant and use all known tenants."
-        },
-        "azure.cloud": {
-          "type": "string",
-          "enum": [
-            "Azure",
-            "AzureChina",
-            "AzureGermanCloud",
-            "AzureUSGovernment"
-          ],
-          "enumDescriptions": [
-            "Azure",
-            "Azure China",
-            "Azure Germany",
-            "Azure US Government"
-          ],
-          "default": "Azure",
-          "description": "The current Azure Cloud to connect to."
-        },
-        "azure.ppe": {
-          "type": "object",
-          "properties": {
-            "portalUrl": {
-              "type": "string"
-            },
-            "publishingProfileUrl": {
-              "type": "string"
-            },
-            "managementEndpointUrl": {
-              "type": "string"
-            },
-            "resourceManagerEndpointUrl": {
-              "type": "string"
-            },
-            "sqlManagementEndpointUrl": {
-              "type": "string"
-            },
-            "sqlServerHostnameSuffix": {
-              "type": "string"
-            },
-            "galleryEndpointUrl": {
-              "type": "string"
-            },
-            "activeDirectoryEndpointUrl": {
-              "type": "string"
-            },
-            "activeDirectoryResourceId": {
-              "type": "string"
-            },
-            "activeDirectoryGraphResourceId": {
-              "type": "string"
-            },
-            "batchResourceId": {
-              "type": "string"
-            },
-            "activeDirectoryGraphApiVersion": {
-              "type": "string"
-            },
-            "storageEndpointSuffix": {
-              "type": "string"
-            },
-            "keyVaultDnsSuffix": {
-              "type": "string"
-            },
-            "azureDataLakeStoreFileSystemEndpointSuffix": {
-              "type": "string"
-            },
-            "azureDataLakeAnalyticsCatalogAndJobEndpointSuffix": {
-              "type": "string"
-            },
-            "validateAuthority": {
-              "type": "boolean"
-            }
-          },
-          "default": null,
-          "description": "Development setting: The PPE environment for testing."
         }
       }
     }
@@ -225,11 +86,9 @@
   },
   "dependencies": {
     "adal-node": "0.1.28",
-    "azure-arm-resource": "7.0.1",
     "form-data": "2.3.3",
     "http-proxy-agent": "2.1.0",
     "https-proxy-agent": "2.2.1",
-    "ms-rest-azure": "2.5.9",
     "request": "2.88.0",
     "request-promise": "4.2.2",
     "semver": "5.6.0",
