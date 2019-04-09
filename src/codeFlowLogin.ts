@@ -12,6 +12,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { AzureEnvironment } from 'ms-rest-azure';
 import { TokenResponse, AuthenticationContext } from 'adal-node';
+import { DEFAULT_CLIENT_ID } from './constants';
 
 const redirectUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
 const redirectUrlADFS = 'http://127.0.0.1:9472/';
@@ -64,8 +65,10 @@ export async function login(clientId: string, environment: AzureEnvironment, adf
 	try {
 		const port = await startServer(server);
 		const state = `${port},${encodeURIComponent(nonce)}`;
+		const redirectUrlAAD = `http://localhost:${port}/callback`;
 		const redirectUrl = adfs ? redirectUrlADFS : redirectUrlAAD;
-		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&resource=${encodeURIComponent(environment.activeDirectoryResourceId)}&prompt=select_account`);
+
+		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&resource=${encodeURIComponent(environment.activeDirectoryResourceId)}&prompt=select_account`);
 
 		const codeRes = await codePromise;
 		const res = codeRes.res;
@@ -74,10 +77,14 @@ export async function login(clientId: string, environment: AzureEnvironment, adf
 				throw codeRes.err;
 			}
 			const tokenResponse = await tokenWithAuthorizationCode(clientId, environment, redirectUrl, tenantId, codeRes.code);
+			console.log('1');
 			res.writeHead(302, { Location: '/' });
+			console.log('2');
 			res.end();
+			console.log('3');
 			return tokenResponse;
 		} catch (err) {
+			console.log(`-=-=-=-=-= err!`, err);
 			res.writeHead(302, { Location: `/?error=${encodeURIComponent(err && err.message || 'Unkown error')}` });
 			res.end();
 			throw err;
@@ -159,7 +166,7 @@ async function startServer(server: http.Server) {
 		server.on('close', () => {
 			reject(new Error('Closed'));
 		});
-		server.listen(0, '127.0.0.1');
+		server.listen(0, 'localhost');
 	});
 	port.then(cancelPortTimer, cancelPortTimer);
 	return port;
@@ -167,6 +174,8 @@ async function startServer(server: http.Server) {
 
 async function callback(nonce: string, reqUrl: url.Url): Promise<string> {
 	let error = reqUrl.query.error_description || reqUrl.query.error;
+
+	console.log(nonce, JSON.stringify(reqUrl), reqUrl.query.state, reqUrl.query.nonce);
 
 	if (!error) {
 		const state = reqUrl.query.state || '';
@@ -186,7 +195,17 @@ async function callback(nonce: string, reqUrl: url.Url): Promise<string> {
 async function tokenWithAuthorizationCode(clientId: string, environment: AzureEnvironment, redirectUrl: string, tenantId: string, code: string) {
 	return new Promise<TokenResponse>((resolve, reject) => {
 		const context = new AuthenticationContext(`${environment.activeDirectoryEndpointUrl}${tenantId}`);
+
+		console.log(`\n\n===>>> tokenWithAuthorizationCode: \n\n`);
+
+		console.log(`environment.activeDirectoryEndpointUrl: ${environment.activeDirectoryEndpointUrl}`);
+		console.log(`tenantId: ${tenantId}`)
+
 		context.acquireTokenWithAuthorizationCode(code, redirectUrl, environment.activeDirectoryResourceId, clientId, <any>undefined, (err, response) => {
+			console.log(err);
+			console.log(response);
+			console.log(clientId);
+
 			if (err) {
 				reject(err);
 			} if (response && response.error) {
@@ -199,6 +218,6 @@ async function tokenWithAuthorizationCode(clientId: string, environment: AzureEn
 }
 
 if (require.main === module) {
-	login('aebc6443-996d-45c2-90f0-388ff96faa56', AzureEnvironment.Azure, false, 'common', async uri => console.log(`Open: ${uri}`))
+	login(DEFAULT_CLIENT_ID, AzureEnvironment.Azure, false, 'common', async uri => console.log(`Open: ${uri}`))
 		.catch(console.error);
 }
