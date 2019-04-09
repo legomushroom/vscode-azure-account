@@ -25,6 +25,7 @@
     "azure"
   ],
   "activationEvents": [
+    "*",
     "onCommand:azure-account.login",
     "onCommand:azure-account.loginWithDeviceCode",
     "onCommand:azure-account.logout",

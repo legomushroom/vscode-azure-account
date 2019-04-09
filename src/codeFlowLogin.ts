@@ -5,60 +5,59 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as http from 'http';
-import * as https from 'https';
+// import * as https from 'https';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { AzureEnvironment } from 'ms-rest-azure';
 import { TokenResponse, AuthenticationContext } from 'adal-node';
 import { DEFAULT_CLIENT_ID } from './constants';
+import { IEnvironment, VSSaasEnvironment } from './azure-account';
 
-const redirectUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
 const redirectUrlADFS = 'http://127.0.0.1:9472/';
 
-export function isADFS(environment: AzureEnvironment) {
+export function isADFS(environment: IEnvironment) {
 	const u = url.parse(environment.activeDirectoryEndpointUrl);
 	const pathname = (u.pathname || '').toLowerCase();
 	return pathname === '/adfs' || pathname.startsWith('/adfs/');
 }
 
-export async function checkRedirectServer(adfs: boolean) {
-	if (adfs) {
-		return true;
-	}
-	let timer: NodeJS.Timer | undefined;
-	const promise = new Promise<boolean>(resolve => {
-		const req = https.get({
-			...url.parse(`${redirectUrlAAD}?state=3333,cccc`),
-		}, res => {
-			const key = Object.keys(res.headers)
-				.find(key => key.toLowerCase() === 'location');
-			const location = key && res.headers[key]
-			resolve(res.statusCode === 302 && typeof location === 'string' && location.startsWith('http://127.0.0.1:3333/callback'));
-		});
-		req.on('error', err => {
-			console.error(err);
-			resolve(false);
-		});
-		req.on('close', () => {
-			resolve(false);
-		});
-		timer = setTimeout(() => {
-			resolve(false);
-			req.abort();
-		}, 5000);
-	});
-	function cancelTimer() {
-		if (timer) {
-			clearTimeout(timer);
-		}
-	}
-	promise.then(cancelTimer, cancelTimer);
-	return promise;
-}
+// export async function checkRedirectServer(adfs: boolean) {
+// 	if (adfs) {
+// 		return true;
+// 	}
+// 	let timer: NodeJS.Timer | undefined;
+// 	const promise = new Promise<boolean>(resolve => {
+// 		const req = https.get({
+// 			...url.parse(`${}?state=3333,cccc`),
+// 		}, res => {
+// 			const key = Object.keys(res.headers)
+// 				.find(key => key.toLowerCase() === 'location');
+// 			const location = key && res.headers[key]
+// 			resolve(res.statusCode === 302 && typeof location === 'string' && location.startsWith('http://127.0.0.1:3333/callback'));
+// 		});
+// 		req.on('error', err => {
+// 			console.error(err);
+// 			resolve(false);
+// 		});
+// 		req.on('close', () => {
+// 			resolve(false);
+// 		});
+// 		timer = setTimeout(() => {
+// 			resolve(false);
+// 			req.abort();
+// 		}, 5000);
+// 	});
+// 	function cancelTimer() {
+// 		if (timer) {
+// 			clearTimeout(timer);
+// 		}
+// 	}
+// 	promise.then(cancelTimer, cancelTimer);
+// 	return promise;
+// }
 
-export async function login(clientId: string, environment: AzureEnvironment, adfs: boolean, tenantId: string, openUri: (url: string) => Promise<void>) {
+export async function login(clientId: string, environment: IEnvironment, adfs: boolean, tenantId: string, openUri: (url: string) => Promise<void>) {
 	const nonce = crypto.randomBytes(16).toString('base64');
 	const { server, codePromise } = createServer(nonce);
 
@@ -77,14 +76,10 @@ export async function login(clientId: string, environment: AzureEnvironment, adf
 				throw codeRes.err;
 			}
 			const tokenResponse = await tokenWithAuthorizationCode(clientId, environment, redirectUrl, tenantId, codeRes.code);
-			console.log('1');
 			res.writeHead(302, { Location: '/' });
-			console.log('2');
 			res.end();
-			console.log('3');
 			return tokenResponse;
 		} catch (err) {
-			console.log(`-=-=-=-=-= err!`, err);
 			res.writeHead(302, { Location: `/?error=${encodeURIComponent(err && err.message || 'Unkown error')}` });
 			res.end();
 			throw err;
@@ -192,20 +187,10 @@ async function callback(nonce: string, reqUrl: url.Url): Promise<string> {
 	throw new Error(error || 'No code received.');
 }
 
-async function tokenWithAuthorizationCode(clientId: string, environment: AzureEnvironment, redirectUrl: string, tenantId: string, code: string) {
+async function tokenWithAuthorizationCode(clientId: string, environment: IEnvironment, redirectUrl: string, tenantId: string, code: string) {
 	return new Promise<TokenResponse>((resolve, reject) => {
 		const context = new AuthenticationContext(`${environment.activeDirectoryEndpointUrl}${tenantId}`);
-
-		console.log(`\n\n===>>> tokenWithAuthorizationCode: \n\n`);
-
-		console.log(`environment.activeDirectoryEndpointUrl: ${environment.activeDirectoryEndpointUrl}`);
-		console.log(`tenantId: ${tenantId}`)
-
 		context.acquireTokenWithAuthorizationCode(code, redirectUrl, environment.activeDirectoryResourceId, clientId, <any>undefined, (err, response) => {
-			console.log(err);
-			console.log(response);
-			console.log(clientId);
-
 			if (err) {
 				reject(err);
 			} if (response && response.error) {
@@ -218,6 +203,6 @@ async function tokenWithAuthorizationCode(clientId: string, environment: AzureEn
 }
 
 if (require.main === module) {
-	login(DEFAULT_CLIENT_ID, AzureEnvironment.Azure, false, 'common', async uri => console.log(`Open: ${uri}`))
+	login(DEFAULT_CLIENT_ID, VSSaasEnvironment, false, 'common', async uri => console.log(`Open: ${uri}`))
 		.catch(console.error);
 }

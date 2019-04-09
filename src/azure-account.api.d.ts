@@ -8,6 +8,7 @@ import { ServiceClientCredentials } from 'ms-rest';
 import { AzureEnvironment } from 'ms-rest-azure';
 import { SubscriptionModels } from 'azure-arm-resource';
 import { ReadStream } from 'fs';
+import { IEnvironment } from './azure-account';
 
 export type AzureLoginStatus = 'Initializing' | 'LoggingIn' | 'LoggedIn' | 'LoggedOut';
 
@@ -15,26 +16,26 @@ export interface AzureAccount {
 	readonly status: AzureLoginStatus;
 	readonly onStatusChanged: Event<AzureLoginStatus>;
 	readonly waitForLogin: () => Promise<boolean>;
-	readonly sessions: AzureSession[];
+	readonly sessions: ISession[];
 	readonly onSessionsChanged: Event<void>;
 	readonly subscriptions: AzureSubscription[];
 	readonly onSubscriptionsChanged: Event<void>;
-	readonly waitForSubscriptions: () => Promise<boolean>;
+	// readonly waitForSubscriptions: () => Promise<boolean>;
 	readonly filters: AzureResourceFilter[];
 	readonly onFiltersChanged: Event<void>;
-	readonly waitForFilters: () => Promise<boolean>;
-	createCloudShell(os: 'Linux' | 'Windows'): CloudShell;
+	// readonly waitForFilters: () => Promise<boolean>;
+	// createCloudShell(os: 'Linux' | 'Windows'): CloudShell;
 }
 
-export interface AzureSession {
-	readonly environment: AzureEnvironment;
+export interface ISession {
+	readonly environment: IEnvironment;
 	readonly userId: string;
 	readonly tenantId: string;
-	readonly credentials: ServiceClientCredentials;
+	// readonly credentials: ServiceClientCredentials;
 }
 
 export interface AzureSubscription {
-	readonly session: AzureSession;
+	readonly session: ISession;
 	readonly subscription: SubscriptionModels.Subscription;
 }
 
@@ -53,6 +54,6 @@ export interface CloudShell {
 	readonly onStatusChanged: Event<CloudShellStatus>;
 	readonly waitForConnection: () => Promise<boolean>;
 	readonly terminal: Promise<Terminal>;
-	readonly session: Promise<AzureSession>;
+	readonly session: Promise<ISession>;
 	readonly uploadFile: (filename: string, stream: ReadStream, options?: UploadOptions) => Promise<void>;
 }
