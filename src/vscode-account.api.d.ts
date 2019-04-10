@@ -4,12 +4,16 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Event, Terminal, Progress, CancellationToken } from 'vscode';
-import { ServiceClientCredentials } from 'ms-rest';
-import { AzureEnvironment } from 'ms-rest-azure';
-import { SubscriptionModels } from 'azure-arm-resource';
 import { ReadStream } from 'fs';
-import { IEnvironment } from './vscode-account';
 
+export interface IEnvironment {
+	name: string;
+	activeDirectoryEndpointUrl: string;
+	activeDirectoryResourceId: string;
+	managementEndpointUrl: string;
+	oauthAppId: string;
+	
+}
 export type VSCodeLoginStatus = 'Initializing' | 'LoggingIn' | 'LoggedIn' | 'LoggedOut';
 
 export interface Token {
@@ -26,6 +30,7 @@ export interface VSCodeAccount {
 	readonly sessions: ISession[];
 	readonly onSessionsChanged: Event<void>;
 	readonly getToken: (environment?: IEnvironment) => Promise<void | Token>;
+	readonly logOut: () => Promise<void>;
 }
 
 export interface ISession {

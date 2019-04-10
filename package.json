@@ -16,7 +16,7 @@
   "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
   "publisher": "ms-vscode",
   "engines": {
-    "vscode": "^1.21.0"
+    "vscode": "^1.31.0"
   },
   "categories": [
     "Other"
@@ -77,6 +77,7 @@
     "@types/request-promise": "4.1.42",
     "@types/semver": "5.5.0",
     "@types/ws": "6.0.1",
+    "raw-loader": "^2.0.0",
     "rimraf": "2.6.2",
     "ts-loader": "5.3.0",
     "typescript": "3.3.4000",

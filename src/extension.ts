@@ -8,16 +8,22 @@ import { VSCodeLoginHelper } from './vscode-account';
 import { VSCodeAccount } from './vscode-account.api';
 import { createReporter } from './telemetry';
 import * as nls from 'vscode-nls';
+import * as keytarType from 'keytar';
+
 import { PRODUCT_NAME } from './constants';
 
 const localize = nls.loadMessageBundle();
 
-export function activate(context: ExtensionContext) {
+export const activateInternal = async (context: ExtensionContext, keytar?: typeof keytarType) => {
 	const reporter = createReporter(context);
-	const azureLogin = new VSCodeLoginHelper(context, reporter);
+	const azureLogin = new VSCodeLoginHelper(context, reporter, keytar);
 	const subscriptions = context.subscriptions;
 	subscriptions.push(createStatusBarItem(context, azureLogin.api));
-	return Promise.resolve(azureLogin.api); // Return promise to work around weird error in WinJS.
+	return azureLogin.api;
+}
+
+export async function activate(context: ExtensionContext) {
+	return await activateInternal(context);
 }
 
 function createStatusBarItem(context: ExtensionContext, api: VSCodeAccount) {

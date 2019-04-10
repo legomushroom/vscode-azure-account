@@ -34,7 +34,7 @@ module.exports = (_, argv) => {
 			'./platform/openbsd': 'commonjs copy-paste-openbsd',
 		},
 		resolve: {
-			extensions: ['.ts', '.js']
+			extensions: ['.ts', '.js', '.html', '.css']
 		},
 		module: {
 			// require
@@ -46,13 +46,19 @@ module.exports = (_, argv) => {
 			// require("prefix" + expr + "surfix")
 			wrappedContextRegExp: /$^/,
 			wrappedContextCritical: false,
-			rules: [{
-				test: /\.ts$/,
-				exclude: /node_modules/,
-				use: [{
-					loader: 'ts-loader',
-				}]
-			}]
+			rules: [
+				{
+					test: /\.ts$/,
+					exclude: /node_modules/,
+					use: [
+						{ loader: 'ts-loader'}
+					]
+				},
+				{
+					test: /\.html|\.css$/,
+					use: 'raw-loader'
+				}
+			]
 		},
 	}
 

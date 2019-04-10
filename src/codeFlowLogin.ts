@@ -6,11 +6,14 @@
 
 import * as http from 'http';
 import * as url from 'url';
-import * as fs from 'fs';
-import * as path from 'path';
+// import * as path from 'path';
 import * as crypto from 'crypto';
 import { TokenResponse, AuthenticationContext } from 'adal-node';
-import { IEnvironment, VSSaasEnvironment } from './vscode-account';
+import { VSSaasEnvironment } from './vscode-account';
+import { IEnvironment } from './vscode-account.api';
+
+import indexHtmlFileContents from '../codeFlowResult/index.html';	
+import indexCSSFileContents from '../codeFlowResult/main.css';
 
 export async function login(clientId: string, environment: IEnvironment, adfs: boolean, tenantId: string, openUri: (url: string) => Promise<void>) {
 	const nonce = crypto.randomBytes(16).toString('base64');
@@ -60,10 +63,10 @@ function createServer(nonce: string) {
 			const reqUrl = url.parse(req.url!, /* parseQueryString */ true);
 			switch (reqUrl.pathname) {
 				case '/':
-					sendFile(res, path.join(__dirname, '../codeFlowResult/index.html'), 'text/html; charset=utf-8');
+					sendFile(res, indexHtmlFileContents, 'text/html; charset=utf-8');
 					break;
 				case '/main.css':
-					sendFile(res, path.join(__dirname, '../codeFlowResult/main.css'), 'text/css; charset=utf-8');
+					sendFile(res, indexCSSFileContents, 'text/css; charset=utf-8');
 					break;
 				case '/callback':
 					resolve(callback(nonce, reqUrl)
@@ -83,18 +86,12 @@ function createServer(nonce: string) {
 	};
 }
 
-function sendFile(res: http.ServerResponse, filepath: string, contentType: string) {
-	fs.readFile(filepath, (err, body) => {
-		if (err) {
-			console.error(err);
-		} else {
-			res.writeHead(200, {
-				'Content-Length': body.length,
-				'Content-Type': contentType
-			});
-			res.end(body);
-		}
+function sendFile(res: http.ServerResponse, contents: string, contentType: string) {
+	res.writeHead(200, {
+		'Content-Length': contents.length,
+		'Content-Type': contentType
 	});
+	res.end(contents);
 }
 
 async function startServer(server: http.Server) {

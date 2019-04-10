@@ -13,24 +13,26 @@ import * as http from 'http';
 import * as https from 'https';
 
 import { window, commands, EventEmitter, MessageItem, ExtensionContext, workspace, env, OutputChannel, CancellationTokenSource, Uri } from 'vscode';
-import { VSCodeAccount, ISession, VSCodeLoginStatus, Token } from './vscode-account.api';
+import { VSCodeAccount, ISession, VSCodeLoginStatus, Token, IEnvironment } from './vscode-account.api';
 import * as codeFlowLogin from './codeFlowLogin';
 import TelemetryReporter from 'vscode-extension-telemetry';
 import { TokenResponse } from 'adal-node';
 
 const localize = nls.loadMessageBundle();
 
-const keytar = getNodeModule<typeof keytarType>('keytar');
+const keytarModule = getNodeModule<typeof keytarType>('keytar');
 
 declare const __webpack_require__: typeof require;
 declare const __non_webpack_require__: typeof require;
 function getNodeModule<T>(moduleName: string): T | undefined {
 	const r = typeof __webpack_require__ === "function" ? __non_webpack_require__ : require;
+	
 	try {
 		return r(`${env.appRoot}/node_modules.asar/${moduleName}`);
 	} catch (err) {
 		// Not in ASAR.
 	}
+
 	try {
 		return r(`${env.appRoot}/node_modules/${moduleName}`);
 	} catch (err) {
@@ -41,11 +43,12 @@ function getNodeModule<T>(moduleName: string): T | undefined {
 
 const credentialsSection = 'VS Code Account';
 
-async function getRefreshToken(environment: IEnvironment, migrateToken?: boolean) {
+async function getRefreshToken(environment: IEnvironment, migrateToken?: boolean, keytar?: typeof keytarType) {
 	if (!keytar) {
 		return;
 	}
 	const tokenKey = `${environment}_vscode-account`;
+
 	try {
 		if (migrateToken) {
 			const token = await keytar.getPassword(tokenKey, 'Refresh Token');
@@ -66,7 +69,7 @@ async function getRefreshToken(environment: IEnvironment, migrateToken?: boolean
 	}
 }
 
-async function storeRefreshToken(environment: IEnvironment, token: string) {
+async function storeRefreshToken(environment: IEnvironment, token: string, keytar?: typeof keytarType) {
 	if (keytar) {
 		try {
 			await keytar.setPassword(credentialsSection, environment.name, token);
@@ -76,7 +79,7 @@ async function storeRefreshToken(environment: IEnvironment, token: string) {
 	}
 }
 
-async function deleteRefreshToken(environmentName: string) {
+async function deleteRefreshToken(environmentName: string, keytar?: typeof keytarType) {
 	if (keytar) {
 		try {
 			await keytar.deletePassword(credentialsSection, environmentName);
@@ -84,15 +87,6 @@ async function deleteRefreshToken(environmentName: string) {
 			// ignore
 		}
 	}
-}
-
-export interface IEnvironment {
-	name: string;
-	activeDirectoryEndpointUrl: string;
-	activeDirectoryResourceId: string;
-	managementEndpointUrl: string;
-	oauthAppId: string;
-	
 }
 
 export const VSSaasEnvironment: IEnvironment = {
@@ -170,7 +164,7 @@ export class VSCodeLoginHelper {
 	private tokenCache = new MemoryCache();
 	private delayedCache = new ProxyTokenCache(this.tokenCache);
 
-	constructor(private context: ExtensionContext, private reporter: TelemetryReporter) {
+	constructor(private context: ExtensionContext, private reporter: TelemetryReporter, private keytar?: typeof keytarType) {
 		const subscriptions = this.context.subscriptions;
 		subscriptions.push(commands.registerCommand('vscode-account.login', (env: IEnvironment = VSSaasEnvironment) => this.login(env, 'login').catch(console.error)));
 		subscriptions.push(commands.registerCommand('vscode-account.logout', () => this.logout().catch(console.error)));
@@ -208,6 +202,9 @@ export class VSCodeLoginHelper {
 		onSessionsChanged: this.onSessionsChanged.event,
 		getToken: (environment?: IEnvironment) => {
 			return this.getToken(environment);
+		},
+		logOut: () => {
+			return this.logout();
 		}
 	};
 
@@ -252,7 +249,8 @@ export class VSCodeLoginHelper {
 			path = 'newLoginCodeFlow';
 			const tokenResponse = await codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
 			const refreshToken = tokenResponse.refreshToken!;
-			await storeRefreshToken(environment, refreshToken);
+			const keytar = this.keytar || keytarModule;
+			await storeRefreshToken(environment, refreshToken, keytar);
 			await this.updateSessions(environment, [tokenResponse]);
 			this.sendLoginTelemetry(trigger, path, environmentName, 'success');
 
@@ -297,7 +295,8 @@ export class VSCodeLoginHelper {
 	async logout() {
 		await this.api.waitForLogin();
 		for (const name of staticEnvironmentNames) {
-			await deleteRefreshToken(name);
+			const keytar = this.keytar || keytarModule;
+			await deleteRefreshToken(name, keytar);
 		}
 		await this.clearSessions();
 		this.updateStatus();
@@ -305,7 +304,9 @@ export class VSCodeLoginHelper {
 
 	private async getTokenForEnvironment(environment: IEnvironment): Promise<Token> {
 		const tenantId = getTenantId();
-		const refreshToken = await getRefreshToken(environment, true);
+		const keytar = this.keytar || keytarModule;
+		const refreshToken = await getRefreshToken(environment, true, keytar);
+		console.log(`refreshToken: ${refreshToken}`);
 		if (!refreshToken) {
 			throw new VSCodeLoginError(localize('vscode-account.refreshTokenMissing', "Not signed in"));
 		}
