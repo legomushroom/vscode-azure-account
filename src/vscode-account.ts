@@ -163,7 +163,7 @@ export class VSCodeLoginHelper {
 	private onSessionsChanged = new EventEmitter<void>();
 	private tokenCache = new MemoryCache();
 	private delayedCache = new ProxyTokenCache(this.tokenCache);
-
+ 
 	constructor(private context: ExtensionContext, private reporter: TelemetryReporter, private keytar?: typeof keytarType) {
 		const subscriptions = this.context.subscriptions;
 		subscriptions.push(commands.registerCommand('vscode-account.login', (env: IEnvironment = VSSaasEnvironment) => this.login(env, 'login').catch(console.error)));
@@ -306,7 +306,6 @@ export class VSCodeLoginHelper {
 		const tenantId = getTenantId();
 		const keytar = this.keytar || keytarModule;
 		const refreshToken = await getRefreshToken(environment, true, keytar);
-		console.log(`refreshToken: ${refreshToken}`);
 		if (!refreshToken) {
 			throw new VSCodeLoginError(localize('vscode-account.refreshTokenMissing', "Not signed in"));
 		}
