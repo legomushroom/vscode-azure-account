@@ -29,7 +29,8 @@ export interface VSCodeAccount {
 	readonly waitForLogin: () => Promise<boolean>;
 	readonly sessions: ISession[];
 	readonly onSessionsChanged: Event<void>;
-	readonly getToken: (environment?: IEnvironment) => Promise<void | Token>;
+	readonly getTokenOrAskToSignIn: (environment?: IEnvironment) => Promise<void | Token>;
+	readonly getCachedToken: (environment?: IEnvironment) => Promise<void | Token>;
 	readonly logOut: () => Promise<void>;
 }
 

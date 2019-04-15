@@ -17,8 +17,10 @@ const localize = nls.loadMessageBundle();
 export const activateInternal = async (context: ExtensionContext, keytar?: typeof keytarType) => {
 	const reporter = createReporter(context);
 	const azureLogin = new VSCodeLoginHelper(context, reporter, keytar);
-	const subscriptions = context.subscriptions;
-	subscriptions.push(createStatusBarItem(context, azureLogin.api));
+	// dont create status bar for now
+	// const subscriptions = context.subscriptions;
+	// subscriptions.push(createStatusBarItem(context, azureLogin.api));
+
 	return azureLogin.api;
 }
 
@@ -26,7 +28,8 @@ export async function activate(context: ExtensionContext) {
 	return await activateInternal(context);
 }
 
-function createStatusBarItem(context: ExtensionContext, api: VSCodeAccount) {
+export function createStatusBarItem(context: ExtensionContext, api: VSCodeAccount) {
+	return
 	const statusBarItem = window.createStatusBarItem();
 	statusBarItem.command = "vscode-account.selectSubscriptions";
 	function updateStatusBar() {

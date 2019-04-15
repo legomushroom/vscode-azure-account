@@ -200,27 +200,39 @@ export class VSCodeLoginHelper {
 		waitForLogin: () => this.waitForLogin(),
 		sessions: [],
 		onSessionsChanged: this.onSessionsChanged.event,
-		getToken: (environment?: IEnvironment) => {
-			return this.getToken(environment);
+		getTokenOrAskToSignIn: (environment?: IEnvironment) => {
+			return this.getTokenOrAskToSignIn(environment);
+		},
+		getCachedToken: (environment?: IEnvironment) => {
+			return this.getCachedToken(environment);
 		},
 		logOut: () => {
 			return this.logout();
 		}
 	};
 
-	private getToken = async (environment?: IEnvironment) => {
+	private getTokenOrAskToSignIn = async (environment: IEnvironment = VSSaasEnvironment) => {
 		environment = environment || VSSaasEnvironment;
+		const token = await this.getCachedToken(environment);
 
-		const isLoggedIn = await this.waitForLogin();
-
-		if (isLoggedIn) {
-			try {
-				const token = await this.getTokenForEnvironment(environment);
-				return token;
-			} catch (e) {}
+		if (token) {
+			return token;
 		}
 
-		return await this.login(environment, 'login');
+		try {
+			return await this.login(environment, 'login'); 
+		} catch(e) {
+			// ignore
+		}
+	}
+
+	private async getCachedToken(environment: IEnvironment = VSSaasEnvironment) {
+		await this.waitForLogin();
+
+		try {
+			const token = await this.getTokenForEnvironment(environment);
+			return token;
+		} catch (e) {}
 	}
 
 	async login(environment: IEnvironment, trigger: LoginTrigger) {
@@ -412,13 +424,13 @@ export class VSCodeLoginHelper {
 		this.onSessionsChanged.fire();
 	}
 
-	private async askForLogin() {
+	private async askForLogin(environment: IEnvironment = VSSaasEnvironment) {
 		if (this.api.status === 'LoggedIn') {
 			return;
 		}
 		const login = { title: localize('azure-account.login', "Sign In") };
 		const result = await window.showInformationMessage(localize('azure-account.loginFirst', "Not signed in, sign in first."), login);
-		return result === login && commands.executeCommand('azure-account.login');
+		return result === login && this.login(environment, 'login');
 	}
 
 	async noSubscriptionsFound(): Promise<void> {
