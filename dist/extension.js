@@ -63176,6 +63176,7 @@ const adal_node_1 = __webpack_require__(/*! adal-node */ "./node_modules/adal-no
 const vscode_account_1 = __webpack_require__(/*! ./vscode-account */ "./src/vscode-account.ts");
 const index_html_1 = __webpack_require__(/*! ../codeFlowResult/index.html */ "./codeFlowResult/index.html");
 const main_css_1 = __webpack_require__(/*! ../codeFlowResult/main.css */ "./codeFlowResult/main.css");
+const redirectVSCodeUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
 function login(clientId, environment, adfs, tenantId, openUri) {
     return __awaiter(this, void 0, void 0, function* () {
         const nonce = crypto.randomBytes(16).toString('base64');
@@ -63183,7 +63184,8 @@ function login(clientId, environment, adfs, tenantId, openUri) {
         try {
             const port = yield startServer(server);
             const state = `${port},${encodeURIComponent(nonce)}`;
-            const redirectUrlAAD = `http://localhost:${port}/callback`;
+            // const redirectUrlAAD = `http://localhost:${port}/callback`;
+            const redirectUrlAAD = redirectVSCodeUrlAAD;
             const redirectUrl = redirectUrlAAD;
             yield openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&resource=${encodeURIComponent(environment.activeDirectoryResourceId)}&prompt=select_account`);
             const codeRes = yield codePromise;
@@ -63543,12 +63545,29 @@ function deleteRefreshToken(environmentName, keytar) {
         }
     });
 }
+// name: 'Azure',
+// portalUrl: 'https://portal.azure.com',
+// publishingProfileUrl: 'https://go.microsoft.com/fwlink/?LinkId=254432',
+// managementEndpointUrl: 'https://management.core.windows.net',
+// resourceManagerEndpointUrl: 'https://management.azure.com/',
+// sqlManagementEndpointUrl: 'https://management.core.windows.net:8443/',
+// sqlServerHostnameSuffix: '.database.windows.net',
+// galleryEndpointUrl: 'https://gallery.azure.com/',
+// activeDirectoryEndpointUrl: 'https://login.microsoftonline.com/',
+// activeDirectoryResourceId: 'https://management.core.windows.net/',
+// activeDirectoryGraphResourceId: 'https://graph.windows.net/',
+// batchResourceId: 'https://batch.core.windows.net/',
+// activeDirectoryGraphApiVersion: '2013-04-05',
+// storageEndpointSuffix: '.core.windows.net',
+// keyVaultDnsSuffix: '.vault.azure.net',
+// azureDataLakeStoreFileSystemEndpointSuffix: 'azuredatalakestore.net',
+// azureDataLakeAnalyticsCatalogAndJobEndpointSuffix: 'azuredatalakeanalytics.net',
+// validateAuthority: true
 exports.VSSaasEnvironment = {
     name: 'VSSaaS',
-    managementEndpointUrl: 'https://graph.microsoft.com/',
     activeDirectoryEndpointUrl: 'https://login.microsoftonline.com/',
-    activeDirectoryResourceId: 'https://graph.microsoft.com/',
-    oauthAppId: 'cdcf391a-4df6-473f-9bea-2c616df8c925'
+    activeDirectoryResourceId: 'https://management.core.windows.net/',
+    oauthAppId: 'aebc6443-996d-45c2-90f0-388ff96faa56'
 };
 const staticEnvironments = [
     exports.VSSaasEnvironment
@@ -63557,7 +63576,7 @@ const staticEnvironmentNames = [
     ...staticEnvironments.map(environment => environment.name)
 ];
 const logVerbose = false;
-const commonTenantId = 'common';
+const commonTenantId = '72f988bf-86f1-41af-91ab-2d7cd011db47';
 const validateAuthority = true;
 class VSCodeLoginError extends Error {
     constructor(message, reason) {

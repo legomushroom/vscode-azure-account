@@ -10,7 +10,7 @@ export interface IEnvironment {
 	name: string;
 	activeDirectoryEndpointUrl: string;
 	activeDirectoryResourceId: string;
-	managementEndpointUrl: string;
+	// managementEndpointUrl: string;
 	oauthAppId: string;
 	
 }

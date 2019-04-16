@@ -15,6 +15,8 @@ import { IEnvironment } from './vscode-account.api';
 import indexHtmlFileContents from '../codeFlowResult/index.html';	
 import indexCSSFileContents from '../codeFlowResult/main.css';
 
+const redirectVSCodeUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
+
 export async function login(clientId: string, environment: IEnvironment, adfs: boolean, tenantId: string, openUri: (url: string) => Promise<void>) {
 	const nonce = crypto.randomBytes(16).toString('base64');
 	const { server, codePromise } = createServer(nonce);
@@ -22,7 +24,8 @@ export async function login(clientId: string, environment: IEnvironment, adfs: b
 	try {
 		const port = await startServer(server);
 		const state = `${port},${encodeURIComponent(nonce)}`;
-		const redirectUrlAAD = `http://localhost:${port}/callback`;
+		// const redirectUrlAAD = `http://localhost:${port}/callback`;
+		const redirectUrlAAD = redirectVSCodeUrlAAD;
 		const redirectUrl = redirectUrlAAD;
 
 		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&resource=${encodeURIComponent(environment.activeDirectoryResourceId)}&prompt=select_account`);

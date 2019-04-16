@@ -91,10 +91,9 @@ async function deleteRefreshToken(environmentName: string, keytar?: typeof keyta
 
 export const VSSaasEnvironment: IEnvironment = {
 	name: 'VSSaaS',
-	managementEndpointUrl: 'https://graph.microsoft.com/',
 	activeDirectoryEndpointUrl: 'https://login.microsoftonline.com/',
-	activeDirectoryResourceId: 'https://graph.microsoft.com/',
-	oauthAppId: 'cdcf391a-4df6-473f-9bea-2c616df8c925'
+	activeDirectoryResourceId: 'https://management.core.windows.net/',
+	oauthAppId: 'aebc6443-996d-45c2-90f0-388ff96faa56'
 }
 
 const staticEnvironments: IEnvironment[] = [
@@ -106,7 +105,7 @@ const staticEnvironmentNames = [
 ];
 
 const logVerbose = false;
-const commonTenantId = 'common';
+const commonTenantId = '72f988bf-86f1-41af-91ab-2d7cd011db47';
 const validateAuthority = true;
 
 interface VSCodeAccountWriteable extends VSCodeAccount {
