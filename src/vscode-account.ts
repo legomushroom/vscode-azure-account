@@ -17,6 +17,7 @@ import { VSCodeAccount, ISession, VSCodeLoginStatus, Token, IEnvironment } from 
 import * as codeFlowLogin from './codeFlowLogin';
 import TelemetryReporter from 'vscode-extension-telemetry';
 import { TokenResponse } from 'adal-node';
+import { Signal } from './utils/signal';
 
 const localize = nls.loadMessageBundle();
 
@@ -162,6 +163,8 @@ export class VSCodeLoginHelper {
 	private onSessionsChanged = new EventEmitter<void>();
 	private tokenCache = new MemoryCache();
 	private delayedCache = new ProxyTokenCache(this.tokenCache);
+
+	private initialLoginAttemptSignal: Signal<void> = new Signal();
  
 	constructor(private context: ExtensionContext, private reporter: TelemetryReporter, private keytar?: typeof keytarType) {
 		const subscriptions = this.context.subscriptions;
@@ -226,7 +229,7 @@ export class VSCodeLoginHelper {
 	}
 
 	private async getCachedToken(environment: IEnvironment = VSSaasEnvironment) {
-		await this.waitForLogin();
+		await this.initialLoginAttemptSignal.promise;
 
 		try {
 			const token = await this.getTokenForEnvironment(environment);
@@ -352,6 +355,9 @@ export class VSCodeLoginHelper {
 			}
 		} finally {
 			this.updateStatus();
+			if (trigger === 'activation') {
+				this.initialLoginAttemptSignal.complete();
+			}
 		}
 	}
 
