@@ -6,16 +6,13 @@
 
 import * as http from 'http';
 import * as url from 'url';
-// import * as path from 'path';
 import * as crypto from 'crypto';
-// import { TokenResponse, AuthenticationContext } from 'adal-node';
 import { VSSaasEnvironment } from './vscode-account';
 import { IEnvironment } from './vscode-account.api';
-const fetch = require('node-fetch').default;
-const Bluebird = require('bluebird');
-const { URLSearchParams } = require('url');
+import fetch from 'node-fetch';
+import * as Bluebird from 'bluebird';
  
-fetch.Promise = Bluebird;
+(fetch as any).Promise = Bluebird;
 
 import indexHtmlFileContents from '../codeFlowResult/index.html';	
 import indexCSSFileContents from '../codeFlowResult/main.css';
@@ -146,7 +143,7 @@ async function callback(nonce: string, reqUrl: url.Url): Promise<string> {
 async function tokenWithAuthorizationCode(clientId: string, environment: IEnvironment, redirectUrl: string, tenantId: string, code: string): Promise<TokenResponse> {
 		const scope = 'openid offline_access https://graph.microsoft.com/user.read';
 		const grantType = 'authorization_code';
-		const params = new URLSearchParams();
+		const params = new url.URLSearchParams();
 
 		params.append('client_id', clientId);
 		params.append('scope', scope);

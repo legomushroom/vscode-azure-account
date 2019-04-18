@@ -29,7 +29,7 @@ export async function activate(context: ExtensionContext) {
 }
 
 export function createStatusBarItem(context: ExtensionContext, api: VSCodeAccount) {
-	// return;
+	return;
 	const statusBarItem = window.createStatusBarItem();
 	statusBarItem.command = "vscode-account.selectSubscriptions";
 	function updateStatusBar() {
