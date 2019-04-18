@@ -13,8 +13,7 @@ import { VSSaasEnvironment } from './vscode-account';
 import { IEnvironment } from './vscode-account.api';
 const fetch = require('node-fetch').default;
 const Bluebird = require('bluebird');
-
-console.log(fetch);
+const { URLSearchParams } = require('url');
  
 fetch.Promise = Bluebird;
 
@@ -32,20 +31,7 @@ export async function login(clientId: string, environment: IEnvironment, adfs: b
 		const redirectUrlAAD = `http://localhost:${port}/callback`;
 		// const redirectUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
 		const redirectUrl = redirectUrlAAD;
-
-		console.log(port);
-		
-		// https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?
-		// 	client_id=6731de76-14a6-49ae-97bc-6eba6914391e
-		// 	&response_type=code
-		// 	&redirect_uri=http%3A%2F%2Flocalhost%2Fmyapp%2F
-		// 	&response_mode=query
-		// 	&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read
-		// 	&state=12345
-		// https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=a3037261-2c94-4a2e-b53f-090f6cdd712a&response_type=code&redirect_uri=http://localhost:53138/callback&scope=api://9db1d849-f699-4cfb-8160-64bed3335c72/All&state=53138,QQAGL7Qa4bYJtIFyavhBzg==
-		// const scope = `&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read`;
-		const scope = ``;
-		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&prompt=select_account&resource=${encodeURIComponent('https://graph.microsoft.com')}${scope}`);
+		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&prompt=select_account&resource=${encodeURIComponent('https://graph.microsoft.com')}`);
 
 		const codeRes = await codePromise;
 		const res = codeRes.res;
@@ -158,39 +144,33 @@ async function callback(nonce: string, reqUrl: url.Url): Promise<string> {
 }
 
 async function tokenWithAuthorizationCode(clientId: string, environment: IEnvironment, redirectUrl: string, tenantId: string, code: string): Promise<TokenResponse> {
-	// return new Promise<TokenResponse>(async (resolve, reject) => {
-		// const bod = JSON.parse(`{"url":"https://login.microsoftonline.com/common/oauth2/token?api-version=1.0","body":"grant_type=authorization_code&client_id=a3037261-2c94-4a2e-b53f-090f6cdd712a&resource=api%3A%2F%2F9db1d849-f699-4cfb-8160-64bed3335c72&redirect_uri=http%3A%2F%2Flocalhost%3A56479%2Fcallback&code=Mdf961a89-2001-333b-6e48-81fbb4d451a6&client_secret=","headers":{"Content-Type":"application/x-www-form-urlencoded","Accept-Charset":"utf-8","client-request-id":"196eb596-0a2d-42f3-b6cb-3aca639f0e98","return-client-request-id":"true","x-client-SKU":"Node","x-client-Ver":"0.1.28","x-client-OS":"darwin","x-client-CPU":"x64"},"followRedirect":false,"encoding":"utf8"}`);
-		
+		const scope = 'openid offline_access https://graph.microsoft.com/user.read';
+		const grantType = 'authorization_code';
+		const params = new URLSearchParams();
+
+		params.append('client_id', clientId);
+		params.append('scope', scope);
+		params.append('redirect_uri', redirectUrl);
+		params.append('grant_type', grantType);
+		params.append('code', code);
+
 		const result = await fetch(
-			`https://login.microsoftonline.com/common/oauth2/v2.0/token?client_id=${clientId}&scope=offline_access&https%3A%2F%2Fgraph.microsoft.com%2Fuser.read&code=${code}&grant_type=authorization_code&redirect_uri=${encodeURIComponent('http://localhost/callback')}`,
+			`https://login.microsoftonline.com/common/oauth2/v2.0/token`,
 			{
 				method: 'POST',
-				// headers: {"Content-Type":"application/x-www-form-urlencoded","Accept-Charset":"utf-8","client-request-id":clientId,"return-client-request-id":"true","x-client-SKU":"Node","x-client-Ver":"0.1.28","x-client-OS":"darwin","x-client-CPU":"x64"},
-				"followRedirect":false,
-				// "encoding":"utf8"
+				body: params
 		});
 
-		console.log(result);
+		const resultJSON = await result.json();
 
 		return {
-			accessToken: '',
-			expiresIn: 3900,
-			tokenType: '',
-			expiresOn: '',
-			resource: ''
+			accessToken: resultJSON.access_token,
+			refreshToken: resultJSON.refresh_token,
+			expiresIn: resultJSON.expires_in,
+			expiresOn: `${Date.now() + (resultJSON.expires_in as number)}`,
+			tokenType: resultJSON.token_type,
+			resource: environment.activeDirectoryResourceId
 		};
-
-		// const context = new AuthenticationContext(`${environment.activeDirectoryEndpointUrl}${tenantId}`);
-		// context.acquireTokenWithAuthorizationCode(code, redirectUrl, environment.activeDirectoryResourceId, clientId, <any>undefined, (err, response) => {
-		// 	if (err) {
-		// 		reject(err);
-		// 	} if (response && response.error) {
-		// 		reject(new Error(`${response.error}: ${response.errorDescription}`));
-		// 	} else {
-		// 		resolve(<TokenResponse>response);
-		// 	}
-		// });
-	// });
 }
 
 if (require.main === module) {

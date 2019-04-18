@@ -94,7 +94,8 @@ export const VSSaasEnvironment: IEnvironment = {
 	name: 'VSSaaS',
 	activeDirectoryEndpointUrl: 'https://login.microsoftonline.com/',
 	activeDirectoryResourceId: 'https://graph.microsoft.com/',
-	oauthAppId: 'aaa7edab-4c76-4bb0-9335-3ec67c7fb0da'
+	oauthAppId: 'aaa7edab-4c76-4bb0-9335-3ec67c7fb0da',
+	// oauthAppId: 'a3037261-2c94-4a2e-b53f-090f6cdd712a',
 }
 
 const staticEnvironments: IEnvironment[] = [

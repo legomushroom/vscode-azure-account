@@ -70789,7 +70789,7 @@ const crypto = __webpack_require__(/*! crypto */ "crypto");
 const vscode_account_1 = __webpack_require__(/*! ./vscode-account */ "./src/vscode-account.ts");
 const fetch = __webpack_require__(/*! node-fetch */ "./node_modules/node-fetch/lib/index.mjs").default;
 const Bluebird = __webpack_require__(/*! bluebird */ "./node_modules/bluebird/js/release/bluebird.js");
-console.log(fetch);
+const { URLSearchParams } = __webpack_require__(/*! url */ "url");
 fetch.Promise = Bluebird;
 const index_html_1 = __webpack_require__(/*! ../codeFlowResult/index.html */ "./codeFlowResult/index.html");
 const main_css_1 = __webpack_require__(/*! ../codeFlowResult/main.css */ "./codeFlowResult/main.css");
@@ -70803,18 +70803,7 @@ function login(clientId, environment, adfs, tenantId, openUri) {
             const redirectUrlAAD = `http://localhost:${port}/callback`;
             // const redirectUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
             const redirectUrl = redirectUrlAAD;
-            console.log(port);
-            // https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?
-            // 	client_id=6731de76-14a6-49ae-97bc-6eba6914391e
-            // 	&response_type=code
-            // 	&redirect_uri=http%3A%2F%2Flocalhost%2Fmyapp%2F
-            // 	&response_mode=query
-            // 	&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read
-            // 	&state=12345
-            // https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=a3037261-2c94-4a2e-b53f-090f6cdd712a&response_type=code&redirect_uri=http://localhost:53138/callback&scope=api://9db1d849-f699-4cfb-8160-64bed3335c72/All&state=53138,QQAGL7Qa4bYJtIFyavhBzg==
-            // const scope = `&scope=openid%20offline_access%20https%3A%2F%2Fgraph.microsoft.com%2Fuser.read`;
-            const scope = ``;
-            yield openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&prompt=select_account&resource=${encodeURIComponent('https://graph.microsoft.com')}${scope}`);
+            yield openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&prompt=select_account&resource=${encodeURIComponent('https://graph.microsoft.com')}`);
             const codeRes = yield codePromise;
             const res = codeRes.res;
             try {
@@ -70928,32 +70917,34 @@ function callback(nonce, reqUrl) {
 }
 function tokenWithAuthorizationCode(clientId, environment, redirectUrl, tenantId, code) {
     return __awaiter(this, void 0, void 0, function* () {
-        // return new Promise<TokenResponse>(async (resolve, reject) => {
-        // const bod = JSON.parse(`{"url":"https://login.microsoftonline.com/common/oauth2/token?api-version=1.0","body":"grant_type=authorization_code&client_id=a3037261-2c94-4a2e-b53f-090f6cdd712a&resource=api%3A%2F%2F9db1d849-f699-4cfb-8160-64bed3335c72&redirect_uri=http%3A%2F%2Flocalhost%3A56479%2Fcallback&code=Mdf961a89-2001-333b-6e48-81fbb4d451a6&client_secret=","headers":{"Content-Type":"application/x-www-form-urlencoded","Accept-Charset":"utf-8","client-request-id":"196eb596-0a2d-42f3-b6cb-3aca639f0e98","return-client-request-id":"true","x-client-SKU":"Node","x-client-Ver":"0.1.28","x-client-OS":"darwin","x-client-CPU":"x64"},"followRedirect":false,"encoding":"utf8"}`);
-        const result = yield fetch(`https://login.microsoftonline.com/common/oauth2/v2.0/token?client_id=${clientId}&scope=offline_access&https%3A%2F%2Fgraph.microsoft.com%2Fuser.read&code=${code}&grant_type=authorization_code&redirect_uri=${encodeURIComponent('http://localhost/callback')}`, {
+        const scope = 'openid offline_access https://graph.microsoft.com/user.read';
+        const grantType = 'authorization_code';
+        const params = new URLSearchParams();
+        params.append('client_id', clientId);
+        params.append('scope', scope);
+        params.append('redirect_uri', redirectUrl);
+        params.append('grant_type', grantType);
+        params.append('code', code);
+        const result = yield fetch(`https://login.microsoftonline.com/common/oauth2/v2.0/token`, {
             method: 'POST',
-            // headers: {"Content-Type":"application/x-www-form-urlencoded","Accept-Charset":"utf-8","client-request-id":clientId,"return-client-request-id":"true","x-client-SKU":"Node","x-client-Ver":"0.1.28","x-client-OS":"darwin","x-client-CPU":"x64"},
-            "followRedirect": false,
+            body: params
         });
-        console.log(result);
+        const resultJSON = yield result.json();
+        // access_token:"eyJ0eXAiOiJKV1QiLCJub25jZSI6IkFRQUJBQUFBQUFEQ29NcGpKWHJ4VHE5Vkc5dGUtN0ZYQ2p0cExNOFlBRjFPeVFJUV9Ya0pXSkYwU2pLNlpPcmc1RW1oTDBIYjFoNzFZTHpnV3BSWGdqUGwwbnMxLVdSdE9Ea3NsV2dTZndsZ0F4di1SMnV1RWlBQSIsImFsZyI6IlJTMjU2IiwieDV0IjoiSEJ4bDltQWU2Z3hhdkNrY29PVTJUSHNETmEwIiwia2lkIjoiSEJ4bDltQWU2Z3hhdkNrY29PVTJUSHNETmEwIn0.eyJhdWQiOiJodHRwczovL2dyYXBoLm1pY3Jvc29mdC5jb20iLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC83MmY5ODhiZi04NmYxLTQxYWYtOTFhYi0yZDdjZDAxMWRiNDcvIiwiaWF0IjoxNTU1NjE5NTgxLCJuYmYiOjE1NTU2MTk1ODEsImV4cCI6MTU1NTYyMzQ4MSwiYWNjdCI6MCwiYWNyIjoiMSIsImFpbyI6IkFWUUFxLzhMQUFBQStCeTlJNjR4R29jRHM1SGFPN0Q4and6V0o2U0p1SkY3anpHRytpZnArSWZDa3VRVUJEWWlFbVFvcHdvMkNEV0tueTNPVnhNZlUwTEcweXQvaFdDMHc3WmRGV0F3aXBXUlJJNzhqRnNIMzhNPSIsImFtciI6WyJwd2QiLCJtZmEiXSwiYXBwX2Rpc3BsYXluYW1lIjoiVlNDb2RlIEFjY291bnQgMiIsImFwcGlkIjoiYWFhN2VkYWItNGM3Ni00YmIwLTkzMzUtM2VjNjdjN2ZiMGRhIiwiYXBwaWRhY3IiOiIwIiwiZmFtaWx5X25hbWUiOiJTb2xvbWthIiwiZ2l2ZW5fbmFtZSI6Ik9sZWciLCJpbl9jb3JwIjoidHJ1ZSIsImlwYWRkciI6IjE2Ny4yMjAuNjEuMzEiLCJuYW1lIjoiT2xlZyBTb2xvbWthIiwib2l...
+        // expires_in:3599
+        // ext_expires_in:3599
+        // id_token:"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkhCeGw5bUFlNmd4YXZDa2NvT1UyVEhzRE5hMCJ9.eyJhdWQiOiJhYWE3ZWRhYi00Yzc2LTRiYjAtOTMzNS0zZWM2N2M3ZmIwZGEiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vNzJmOTg4YmYtODZmMS00MWFmLTkxYWItMmQ3Y2QwMTFkYjQ3L3YyLjAiLCJpYXQiOjE1NTU2MTk1ODEsIm5iZiI6MTU1NTYxOTU4MSwiZXhwIjoxNTU1NjIzNDgxLCJhaW8iOiJBVlFBcS84TEFBQUFta2hOeDMwOC9XMFJIMG9tZXhNR2sxZzJUZFF5YVRHMGJQMVVTVjFsOENqMGVrK0pyQWxJN2VKcXY2aEZKQjNSYTZ3c0FSV01nbjNTdFExZ3JzVlplU1BPTVVnNXdhZjA4MmdYOGZObC96WT0iLCJzdWIiOiJWMWw5bVlxV2RlTWdnZTNCMUktQkNCdjctU19aa3h4akZVdWRMVzR4YWU0IiwidGlkIjoiNzJmOTg4YmYtODZmMS00MWFmLTkxYWItMmQ3Y2QwMTFkYjQ3IiwidXRpIjoiM3h5N1V5OGM4MFdMRGtGeGROTkNBQSIsInZlciI6IjIuMCJ9.fw0WPXfkjWMylTCn-8FNslIsaKJYzFyn9XGe6e9dqEjblZ5QWepjzcc-jKmbgsWce1Ur89h7aULzJ3yD2tGOjXEzHUemMx77inYsbGQUnUx1ncQyCWetkcKwVvulr2-h7q3riYHCFOSkrONyLG619oec-oGVDyLj_MQYX8LtRMgjVzp6ocCC-69-2G6iBg0QMNGNJBY06TdllHZh2WIMbKzphMawwhk2kC5-6rp4u05Gx5Y67qUdqTTYYKjvRxXNBflvqkJcJLYilKudSClderhVA83teDjGvPz6EUU8hgjt7akIJ7woQas7WgjSZNglqITUCaUa4Lu-qWrRB...
+        // refresh_token:"OAQABAAAAAADCoMpjJXrxTq9VG9te-7FXE3ecJ3-KXmaf48zl4CgfwqNn02DbUIZRBOw2_J5KKj1h3ATnmoY-Aapg8kvlKETiUXvZo9eBZvUclpEDTyl-bp425tRbhuohCJwe6kNO2fWr1LDj92tV5QBaandWztmGeFARjX80B_KhDKTCnkKekeSPZh7QZbbv4oLY_Iw97TGgjQ0JLMJ-yDduHpMCoOjbeCpQDjnb7a9wTDwla7BS208F2VOHizf4bSV9DD57DvyxX_T6OTU3qEoHiKsQ26x47WPiEG-I13lB3FRoN27fbeDMEq1qsPQw42hqjO0W4bDkiY_5iWbw5U-DPS6YXAh8LLxB2DLvpAYqdfyllkC-Eeh3QyXYO0JCAEQV_crKm_G8r7XJpHdlRfMSmrlX66YG-mF7jR8bRcKGQo9FvXc6KJwtXOcYEvJvcXozxARRTCTT6WqU5zwpZJjqmkXXeL2xbL-rJZ8iSodJIph-VasNm4dAoneA6G2YeQvanS9atvsYnDv5lkYAGbphN9bK3vMXk_MouV4QmpngqngtKoxQtVgq8hZWTNP8G_2te0JNn3PEM8Ky0l2zTjLqdZksbxrotRlbTZyRGRnBcT5JvilBZlfK8dsR8Dj46e8723Rn_tEOX-quI207RZVvxnjAMqsfxAgD5WHEpdQUtPPmIEaxBX_UblZfetVePWb-M-8_hdZFdMS8AZprQBBOsXMg-PZK9119Cl6i-q_neCLpBQrVojp88E77N6mEeFXfquJj2GHtYsmYOMZin3u7uLSuj_kRBwu3jt_xdfyluaI-zb-TmvkNyq-MzSr8JXnXeZKlX6LQtecrLO49fESlCkmpJ0GCc6kV74Mw-H-3KFgqmKyHnmDDIgCfG6369S_FeyHrrjYfNj0HU1DmMi8vMDJfNmPsX3Qcfzi0uppGaWgb-TkJNAewJ0bflz9EO-r5jHZHWP2K6xuKPkPzqcVXdsX7qcFBLvEpMYCV7Itvzo1Gu03CW-Z5gicLC9...
+        // scope:"openid profile email https://graph.microsoft.com/User.Read"
+        // token_type:"Bearer"
         return {
-            accessToken: '',
-            expiresIn: 3900,
-            tokenType: '',
-            expiresOn: '',
-            resource: ''
+            accessToken: resultJSON.access_token,
+            refreshToken: resultJSON.refresh_token,
+            expiresIn: resultJSON.expires_in,
+            expiresOn: `${Date.now() + resultJSON.expires_in}`,
+            tokenType: resultJSON.token_type,
+            resource: environment.activeDirectoryResourceId
         };
-        // const context = new AuthenticationContext(`${environment.activeDirectoryEndpointUrl}${tenantId}`);
-        // context.acquireTokenWithAuthorizationCode(code, redirectUrl, environment.activeDirectoryResourceId, clientId, <any>undefined, (err, response) => {
-        // 	if (err) {
-        // 		reject(err);
-        // 	} if (response && response.error) {
-        // 		reject(new Error(`${response.error}: ${response.errorDescription}`));
-        // 	} else {
-        // 		resolve(<TokenResponse>response);
-        // 	}
-        // });
-        // });
     });
 }
 if (__webpack_require__.c[__webpack_require__.s] === module) {
@@ -71023,7 +71014,7 @@ function activate(context) {
 }
 exports.activate = activate;
 function createStatusBarItem(context, api) {
-    return;
+    // return;
     const statusBarItem = vscode_1.window.createStatusBarItem();
     statusBarItem.command = "vscode-account.selectSubscriptions";
     function updateStatusBar() {
@@ -71227,7 +71218,7 @@ exports.VSSaasEnvironment = {
     name: 'VSSaaS',
     activeDirectoryEndpointUrl: 'https://login.microsoftonline.com/',
     activeDirectoryResourceId: 'https://graph.microsoft.com/',
-    oauthAppId: 'aaa7edab-4c76-4bb0-9335-3ec67c7fb0da'
+    oauthAppId: 'aaa7edab-4c76-4bb0-9335-3ec67c7fb0da',
 };
 const staticEnvironments = [
     exports.VSSaasEnvironment
