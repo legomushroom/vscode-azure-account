@@ -70797,9 +70797,7 @@ function login(clientId, environment, adfs, tenantId, openUri) {
         try {
             const port = yield startServer(server);
             const state = `${port},${encodeURIComponent(nonce)}`;
-            const redirectUrlAAD = `http://localhost:${port}/callback`;
-            // const redirectUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
-            const redirectUrl = redirectUrlAAD;
+            const redirectUrl = `http://localhost:${port}/callback`;
             yield openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&prompt=select_account&resource=${encodeURIComponent('https://graph.microsoft.com')}`);
             const codeRes = yield codePromise;
             const res = codeRes.res;
@@ -71064,6 +71062,49 @@ exports.createReporter = createReporter;
 
 /***/ }),
 
+/***/ "./src/utils/cancellableTask.ts":
+/*!**************************************!*\
+  !*** ./src/utils/cancellableTask.ts ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const signal_1 = __webpack_require__(/*! ./signal */ "./src/utils/signal.ts");
+const bluebird_1 = __webpack_require__(/*! bluebird */ "./node_modules/bluebird/js/release/bluebird.js");
+class CancellableTask {
+    constructor(task, cancellationToken) {
+        this.task = task;
+        this.cancellationToken = cancellationToken;
+        this.signal = new signal_1.Signal();
+    }
+    run() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.task()
+                .then(this.signal.complete.bind(this.signal))
+                .catch(this.signal.reject.bind(this.signal));
+            this.cancellationToken.onCancellationRequested((e) => {
+                this.signal.reject(new bluebird_1.CancellationError(e));
+            });
+            return this.signal.promise;
+        });
+    }
+}
+exports.CancellableTask = CancellableTask;
+
+
+/***/ }),
+
 /***/ "./src/utils/signal.ts":
 /*!*****************************!*\
   !*** ./src/utils/signal.ts ***!
@@ -71134,25 +71175,7 @@ const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
 const codeFlowLogin = __webpack_require__(/*! ./codeFlowLogin */ "./src/codeFlowLogin.ts");
 const signal_1 = __webpack_require__(/*! ./utils/signal */ "./src/utils/signal.ts");
 const bluebird_1 = __webpack_require__(/*! bluebird */ "./node_modules/bluebird/js/release/bluebird.js");
-class CancellableTask {
-    constructor(task, cancellationToken) {
-        this.task = task;
-        this.cancellationToken = cancellationToken;
-        this.signal = new signal_1.Signal();
-    }
-    run() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.task()
-                .then(this.signal.complete.bind(this.signal))
-                .catch(this.signal.reject.bind(this.signal));
-            this.cancellationToken.onCancellationRequested((e) => {
-                this.signal.reject(new bluebird_1.CancellationError(e));
-            });
-            return this.signal.promise;
-        });
-    }
-}
-exports.CancellableTask = CancellableTask;
+const cancellableTask_1 = __webpack_require__(/*! ./utils/cancellableTask */ "./src/utils/cancellableTask.ts");
 const localize = nls.loadMessageBundle();
 const keytarModule = getNodeModule('keytar');
 function getNodeModule(moduleName) {
@@ -71245,15 +71268,6 @@ class VSCodeLoginError extends Error {
         this.reason = reason;
     }
 }
-// interface Cache {
-// 	subscriptions: {
-// 		session: {
-// 			environment: string;
-// 			userId: string;
-// 			tenantId: string;
-// 		};
-// 	}[];
-// }
 class ProxyTokenCache {
     constructor(target) {
         this.target = target;
@@ -71303,14 +71317,16 @@ class VSCodeLoginHelper {
             }
         };
         this.getTokenOrAskToSignIn = (options = {}) => __awaiter(this, void 0, void 0, function* () {
-            options = Object.assign({ environment: exports.VSSaasEnvironment, shouldSkipQuestion: false, message: 'Sign in to proceed.' }, options);
+            options = Object.assign({ 
+                // defaults
+                environment: exports.VSSaasEnvironment, shouldSkipQuestion: false, message: 'Sign in to proceed.' }, options);
             const token = yield this.getCachedToken(options.environment);
             if (token) {
                 return token;
             }
             if (options.shouldSkipQuestion) {
                 try {
-                    return yield this.login(options.environment, 'login');
+                    return yield this.login(options.environment, 'login', options.notificationOptions);
                 }
                 catch (e) { /* ignore */ }
             }
@@ -71341,6 +71357,12 @@ class VSCodeLoginHelper {
             }
         });
     }
+    test() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const token = yield this.api.getTokenOrAskToSignIn({ shouldSkipQuestion: true });
+            console.log(token);
+        });
+    }
     getCachedToken(environment = exports.VSSaasEnvironment) {
         return __awaiter(this, void 0, void 0, function* () {
             yield this.initialLoginAttemptSignal.promise;
@@ -71351,7 +71373,7 @@ class VSCodeLoginHelper {
             catch (e) { }
         });
     }
-    login(environment, trigger) {
+    login(environment, trigger, notificationProgressOptions) {
         return __awaiter(this, void 0, void 0, function* () {
             let path = 'newLogin';
             let environmentName = 'uninitialized';
@@ -71376,13 +71398,8 @@ class VSCodeLoginHelper {
                 this.beginLoggingIn();
                 const tenantId = getTenantId();
                 path = 'newLoginCodeFlow';
-                const progressOptions = {
-                    title: 'Signing in...',
-                    location: vscode_1.ProgressLocation.Notification,
-                    cancellable: true
-                };
-                return yield vscode_1.window.withProgress(progressOptions, (_, cts) => __awaiter(this, void 0, void 0, function* () {
-                    const cancellabeTask = new CancellableTask(() => __awaiter(this, void 0, void 0, function* () {
+                const createSignInTask = (cts) => __awaiter(this, void 0, void 0, function* () {
+                    const task = new cancellableTask_1.CancellableTask(() => __awaiter(this, void 0, void 0, function* () {
                         const tokenResponse = yield codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
                         const refreshToken = tokenResponse.refreshToken;
                         const keytar = this.keytar || keytarModule;
@@ -71396,7 +71413,20 @@ class VSCodeLoginHelper {
                             expiresOn: tokenResponse.expiresOn
                         };
                     }), cts);
-                    return yield cancellabeTask.run();
+                    return yield task.run();
+                });
+                const signInLabel = 'Signing in...';
+                if (notificationProgressOptions) {
+                    notificationProgressOptions.progress.report({ message: signInLabel });
+                    return yield createSignInTask(notificationProgressOptions.cancellationToken);
+                }
+                const progressOptions = {
+                    title: signInLabel,
+                    location: vscode_1.ProgressLocation.Notification,
+                    cancellable: true
+                };
+                return yield vscode_1.window.withProgress(progressOptions, (_, cts) => __awaiter(this, void 0, void 0, function* () {
+                    return yield createSignInTask(cts);
                 }));
             }
             catch (err) {
@@ -71410,7 +71440,9 @@ class VSCodeLoginHelper {
                 else {
                     this.sendLoginTelemetry(trigger, path, environmentName, 'failure', getErrorMessage(err));
                 }
-                throw err;
+                if (!(err instanceof bluebird_1.CancellationError)) {
+                    throw err;
+                }
             }
             finally {
                 cancelSource.cancel();
@@ -71493,15 +71525,9 @@ class VSCodeLoginHelper {
                     this.initialLoginAttemptSignal.complete();
                 }
             }
+            yield this.test();
         });
     }
-    // private loadCache() {
-    // 	const cache = this.context.globalState.get<Cache>('cache');
-    // 	if (cache) {
-    // 		(<VSCodeAccountWriteable>this.api).status = 'LoggedIn';
-    // 		this.initializeSessions(cache);
-    // 	}
-    // }
     beginLoggingIn() {
         if (this.api.status !== 'LoggedIn') {
             this.api.status = 'LoggingIn';

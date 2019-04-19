@@ -41,8 +41,14 @@ export interface ISession {
 	readonly tenantId: string;
 }
 
+export interface INotificationOptions {
+	progress: Progress<{ message?: string; increment?: number }>;
+	cancellationToken: CancellationToken;
+}
+
 export interface IGetTokenOrSignInOptions {
 	environment?: IEnvironment;
 	shouldSkipQuestion?: boolean;
 	message?: string;
+	notificationOptions?: INotificationOptions; 
 }

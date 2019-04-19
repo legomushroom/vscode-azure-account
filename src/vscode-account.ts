@@ -13,7 +13,7 @@ import * as http from 'http';
 import * as https from 'https';
 
 import { window, commands, EventEmitter, MessageItem, ExtensionContext, workspace, env, OutputChannel, CancellationTokenSource, Uri, ProgressLocation, CancellationToken } from 'vscode';
-import { VSCodeAccount, ISession, VSCodeLoginStatus, Token, IEnvironment, IGetTokenOrSignInOptions } from './vscode-account.api';
+import { VSCodeAccount, ISession, VSCodeLoginStatus, Token, IEnvironment, IGetTokenOrSignInOptions, INotificationOptions } from './vscode-account.api';
 import * as codeFlowLogin from './codeFlowLogin';
 import TelemetryReporter from 'vscode-extension-telemetry';
 import { TokenResponse } from 'adal-node';
@@ -122,16 +122,6 @@ class VSCodeLoginError extends Error {
 	}
 }
 
-// interface Cache {
-// 	subscriptions: {
-// 		session: {
-// 			environment: string;
-// 			userId: string;
-// 			tenantId: string;
-// 		};
-// 	}[];
-// }
-
 class ProxyTokenCache {
 
 	public initEnd?: () => void;
@@ -221,6 +211,7 @@ export class VSCodeLoginHelper {
 
 	private getTokenOrAskToSignIn = async (options: IGetTokenOrSignInOptions = {}) => {
 		options = {
+			// defaults
 			environment: VSSaasEnvironment,
 			shouldSkipQuestion: false,
 			message: 'Sign in to proceed.',
@@ -228,18 +219,23 @@ export class VSCodeLoginHelper {
 		}
 
 		const token = await this.getCachedToken(options.environment);
-
 		if (token) {
 			return token;
 		}
 
 		if (options.shouldSkipQuestion) {
 			try {
-				return await this.login(options.environment!, 'login'); 
+				return await this.login(options.environment!, 'login', options.notificationOptions); 
 			} catch(e) { /* ignore */}
 		}
 
 		return await this.askForLogin(options.environment, options.message);
+	}
+
+	private async test() {
+		const token = await this.api.getTokenOrAskToSignIn({ shouldSkipQuestion: true });
+
+		console.log(token);
 	}
 
 	private async getCachedToken(environment: IEnvironment = VSSaasEnvironment) {
@@ -251,7 +247,7 @@ export class VSCodeLoginHelper {
 		} catch (e) {}
 	}
 
-	async login(environment: IEnvironment, trigger: LoginTrigger) {
+	async login(environment: IEnvironment, trigger: LoginTrigger, notificationProgressOptions?: INotificationOptions) {
 		let path: CodePath = 'newLogin';
 		let environmentName = 'uninitialized';
 		const cancelSource = new CancellationTokenSource();
@@ -276,14 +272,8 @@ export class VSCodeLoginHelper {
 			const tenantId = getTenantId();
 			path = 'newLoginCodeFlow';
 
-			const progressOptions = {
-				title: 'Signing in...',
-				location: ProgressLocation.Notification,
-				cancellable: true
-			};
-
-			return await window.withProgress(progressOptions, async (_, cts: CancellationToken) => {
-				const cancellabeTask = new CancellableTask(async () => {
+			const createSignInTask = async (cts: CancellationToken) => {
+				const task = new CancellableTask(async () => {
 					const tokenResponse = await codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
 					const refreshToken = tokenResponse.refreshToken!;
 					const keytar = this.keytar || keytarModule;
@@ -299,7 +289,22 @@ export class VSCodeLoginHelper {
 					};
 				}, cts);
 
-				return await cancellabeTask.run() as TokenResponse | void;
+				return await task.run() as TokenResponse | void;
+			}
+
+			const signInLabel = 'Signing in...';
+			if (notificationProgressOptions) {
+				notificationProgressOptions.progress.report({ message: signInLabel });
+				return await createSignInTask(notificationProgressOptions.cancellationToken);
+			}
+
+			const progressOptions = {
+				title: signInLabel,
+				location: ProgressLocation.Notification,
+				cancellable: true
+			};
+			return await window.withProgress(progressOptions, async (_, cts: CancellationToken) => {
+				return await createSignInTask(cts);
 			});
 		} catch (err) {
 			if (err instanceof VSCodeLoginError && err.reason) {
@@ -308,9 +313,11 @@ export class VSCodeLoginHelper {
 			} else if (err instanceof CancellationError) {
 				this.sendLoginTelemetry(trigger, path, environmentName, 'cancel', getErrorMessage(err));
 			} else {
-			this.sendLoginTelemetry(trigger, path, environmentName, 'failure', getErrorMessage(err));
-		}
-			throw err;
+				this.sendLoginTelemetry(trigger, path, environmentName, 'failure', getErrorMessage(err));
+			}
+			if (!(err instanceof CancellationError)) {
+				throw err;
+			}
 		} finally {
 			cancelSource.cancel();
 			cancelSource.dispose();
@@ -388,15 +395,10 @@ export class VSCodeLoginHelper {
 				this.initialLoginAttemptSignal.complete();
 			}
 		}
+
+		await this.test();
 	}
 
-	// private loadCache() {
-	// 	const cache = this.context.globalState.get<Cache>('cache');
-	// 	if (cache) {
-	// 		(<VSCodeAccountWriteable>this.api).status = 'LoggedIn';
-	// 		this.initializeSessions(cache);
-	// 	}
-	// }
 
 	private beginLoggingIn() {
 		if (this.api.status !== 'LoggedIn') {
