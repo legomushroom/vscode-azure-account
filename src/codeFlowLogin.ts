@@ -25,9 +25,7 @@ export async function login(clientId: string, environment: IEnvironment, adfs: b
 	try {
 		const port = await startServer(server);
 		const state = `${port},${encodeURIComponent(nonce)}`;
-		const redirectUrlAAD = `http://localhost:${port}/callback`;
-		// const redirectUrlAAD = 'https://vscode-redirect.azurewebsites.net/';
-		const redirectUrl = redirectUrlAAD;
+		const redirectUrl = `http://localhost:${port}/callback`;
 		await openUri(`${environment.activeDirectoryEndpointUrl}${tenantId}/oauth2/authorize?response_type=code&response_mode=query&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${state}&prompt=select_account&resource=${encodeURIComponent('https://graph.microsoft.com')}`);
 
 		const codeRes = await codePromise;

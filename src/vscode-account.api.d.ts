@@ -29,13 +29,20 @@ export interface VSCodeAccount {
 	readonly waitForLogin: () => Promise<boolean>;
 	readonly sessions: ISession[];
 	readonly onSessionsChanged: Event<void>;
-	readonly getTokenOrAskToSignIn: (environment?: IEnvironment) => Promise<void | Token>;
+	readonly getTokenOrAskToSignIn: (options?: IGetTokenOrSignInOptions) => Promise<void | Token>;
 	readonly getCachedToken: (environment?: IEnvironment) => Promise<void | Token>;
 	readonly logOut: () => Promise<void>;
+	readonly askToSignIn: (environment?: IEnvironment, messasge?: string) => Promise<void | Token>;
 }
 
 export interface ISession {
 	readonly environment: IEnvironment;
 	readonly userId: string;
 	readonly tenantId: string;
+}
+
+export interface IGetTokenOrSignInOptions {
+	environment?: IEnvironment;
+	shouldSkipQuestion?: boolean;
+	message?: string;
 }

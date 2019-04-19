@@ -1,20 +1,21 @@
 {
   "name": "vscode-account",
   "displayName": "VSCode Account",
-  "description": "A common Sign-In management extension for VS Code.",
+  "description": "A common authentication management extension for VS Code.",
   "license": "SEE LICENSE IN LICENSE.md",
   "icon": "images/Market_AzureAccount_128x.png",
-  "repository": {
-    "url": "https://github.com/legomushroom/vscode-vscode-account.git"
-  },
   "homepage": "https://github.com/legomushroom/vscode-vscode-account/blob/master/README.md",
   "galleryBanner": {
     "color": "#0072c6",
     "theme": "dark"
   },
-  "version": "0.8.3",
+  "repository": {
+    "url": "https://github.com/legomushroom/vscode-vscode-account.git"
+  },
+  "version": "0.1.0-dev",
   "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
-  "publisher": "ms-vscode",
+  "publisher": "ms-vsliveshare",
+  "types": "./src/vscode-account.api.d.ts",
   "engines": {
     "vscode": "^1.31.0"
   },

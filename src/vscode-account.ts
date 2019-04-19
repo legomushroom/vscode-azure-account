@@ -12,12 +12,14 @@ import * as keytarType from 'keytar';
 import * as http from 'http';
 import * as https from 'https';
 
-import { window, commands, EventEmitter, MessageItem, ExtensionContext, workspace, env, OutputChannel, CancellationTokenSource, Uri } from 'vscode';
-import { VSCodeAccount, ISession, VSCodeLoginStatus, Token, IEnvironment } from './vscode-account.api';
+import { window, commands, EventEmitter, MessageItem, ExtensionContext, workspace, env, OutputChannel, CancellationTokenSource, Uri, ProgressLocation, CancellationToken } from 'vscode';
+import { VSCodeAccount, ISession, VSCodeLoginStatus, Token, IEnvironment, IGetTokenOrSignInOptions } from './vscode-account.api';
 import * as codeFlowLogin from './codeFlowLogin';
 import TelemetryReporter from 'vscode-extension-telemetry';
 import { TokenResponse } from 'adal-node';
 import { Signal } from './utils/signal';
+import { CancellationError } from 'bluebird';
+import { CancellableTask } from './utils/cancellableTask';
 
 const localize = nls.loadMessageBundle();
 
@@ -203,8 +205,11 @@ export class VSCodeLoginHelper {
 		waitForLogin: () => this.waitForLogin(),
 		sessions: [],
 		onSessionsChanged: this.onSessionsChanged.event,
-		getTokenOrAskToSignIn: (environment?: IEnvironment) => {
-			return this.getTokenOrAskToSignIn(environment);
+		getTokenOrAskToSignIn: (options: IGetTokenOrSignInOptions = {}) => {
+			return this.getTokenOrAskToSignIn(options);
+		},
+		askToSignIn: (environment?: IEnvironment, message?: string) => {
+			return this.askForLogin(environment, message);
 		},
 		getCachedToken: (environment?: IEnvironment) => {
 			return this.getCachedToken(environment);
@@ -214,19 +219,27 @@ export class VSCodeLoginHelper {
 		}
 	};
 
-	private getTokenOrAskToSignIn = async (environment: IEnvironment = VSSaasEnvironment) => {
-		environment = environment || VSSaasEnvironment;
-		const token = await this.getCachedToken(environment);
+	private getTokenOrAskToSignIn = async (options: IGetTokenOrSignInOptions = {}) => {
+		options = {
+			environment: VSSaasEnvironment,
+			shouldSkipQuestion: false,
+			message: 'Sign in to proceed.',
+			...options
+		}
+
+		const token = await this.getCachedToken(options.environment);
 
 		if (token) {
 			return token;
 		}
 
-		try {
-			return await this.login(environment, 'login'); 
-		} catch(e) {
-			// ignore
+		if (options.shouldSkipQuestion) {
+			try {
+				return await this.login(options.environment!, 'login'); 
+			} catch(e) { /* ignore */}
 		}
+
+		return await this.askForLogin(options.environment, options.message);
 	}
 
 	private async getCachedToken(environment: IEnvironment = VSSaasEnvironment) {
@@ -262,26 +275,41 @@ export class VSCodeLoginHelper {
 			this.beginLoggingIn();
 			const tenantId = getTenantId();
 			path = 'newLoginCodeFlow';
-			const tokenResponse = await codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
-			const refreshToken = tokenResponse.refreshToken!;
-			const keytar = this.keytar || keytarModule;
-			await storeRefreshToken(environment, refreshToken, keytar);
-			await this.updateSessions(environment, [tokenResponse]);
-			this.sendLoginTelemetry(trigger, path, environmentName, 'success');
 
-			return {
-				accessToken: tokenResponse.accessToken,
-				refreshToken: tokenResponse.refreshToken,
-				expiresIn: tokenResponse.expiresIn,
-				expiresOn: tokenResponse.expiresOn
-			}
+			const progressOptions = {
+				title: 'Signing in...',
+				location: ProgressLocation.Notification,
+				cancellable: true
+			};
+
+			return await window.withProgress(progressOptions, async (_, cts: CancellationToken) => {
+				const cancellabeTask = new CancellableTask(async () => {
+					const tokenResponse = await codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
+					const refreshToken = tokenResponse.refreshToken!;
+					const keytar = this.keytar || keytarModule;
+					await storeRefreshToken(environment, refreshToken, keytar);
+					await this.updateSessions(environment, [tokenResponse]);
+					this.sendLoginTelemetry(trigger, path, environmentName, 'success');
+	
+					return {
+						accessToken: tokenResponse.accessToken,
+						refreshToken: tokenResponse.refreshToken,
+						expiresIn: tokenResponse.expiresIn,
+						expiresOn: tokenResponse.expiresOn
+					};
+				}, cts);
+
+				return await cancellabeTask.run() as TokenResponse | void;
+			});
 		} catch (err) {
 			if (err instanceof VSCodeLoginError && err.reason) {
 				console.error(err.reason);
 				this.sendLoginTelemetry(trigger, path, environmentName, 'error', getErrorMessage(err.reason) || getErrorMessage(err));
+			} else if (err instanceof CancellationError) {
+				this.sendLoginTelemetry(trigger, path, environmentName, 'cancel', getErrorMessage(err));
 			} else {
-				this.sendLoginTelemetry(trigger, path, environmentName, 'failure', getErrorMessage(err));
-			}
+			this.sendLoginTelemetry(trigger, path, environmentName, 'failure', getErrorMessage(err));
+		}
 			throw err;
 		} finally {
 			cancelSource.cancel();
@@ -385,23 +413,6 @@ export class VSCodeLoginHelper {
 		}
 	}
 
-	// private initializeSessions(cache: Cache) {
-	// 	const sessions: Record<string, ISession> = {};
-	// 	for (const { session } of cache.subscriptions) {
-	// 		const { environment, userId, tenantId } = session;
-	// 		const key = `${environment} ${userId} ${tenantId}`;
-	// 		if (!sessions[key]) {
-	// 			sessions[key] = {
-	// 				environment: VSSaasEnvironment,
-	// 				userId,
-	// 				tenantId
-	// 			};
-	// 			this.api.sessions.push(sessions[key]);
-	// 		}
-	// 	}
-	// 	return sessions;
-	// }
-
 	private async updateSessions(environment: IEnvironment, tokenResponses: TokenResponse[]) {
 		await clearTokenCache(this.tokenCache);
 		for (const tokenResponse of tokenResponses) {
@@ -430,13 +441,17 @@ export class VSCodeLoginHelper {
 		this.onSessionsChanged.fire();
 	}
 
-	private async askForLogin(environment: IEnvironment = VSSaasEnvironment) {
+	private async askForLogin(environment: IEnvironment = VSSaasEnvironment, message: string = "Sign in to proceed.") {
 		if (this.api.status === 'LoggedIn') {
 			return;
 		}
 		const login = { title: localize('azure-account.login', "Sign In") };
-		const result = await window.showInformationMessage(localize('azure-account.loginFirst', "Not signed in, sign in first."), login);
-		return result === login && this.login(environment, 'login');
+
+		const result = await window.showInformationMessage(localize('vscode-account.loginFirst', message), login);
+
+		if (result === login) {
+			return await this.login(environment, 'login');
+		}
 	}
 
 	async noSubscriptionsFound(): Promise<void> {

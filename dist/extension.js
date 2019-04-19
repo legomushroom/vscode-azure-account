@@ -70751,10 +70751,10 @@ function patchNextTick() {
 /*!**********************!*\
   !*** ./package.json ***!
   \**********************/
-/*! exports provided: name, displayName, description, license, icon, repository, homepage, galleryBanner, version, aiKey, publisher, engines, categories, keywords, activationEvents, main, contributes, scripts, devDependencies, dependencies, default */
+/*! exports provided: name, displayName, description, license, icon, homepage, galleryBanner, repository, version, aiKey, publisher, types, engines, categories, keywords, activationEvents, main, contributes, scripts, devDependencies, dependencies, default */
 /***/ (function(module) {
 
-module.exports = {"name":"vscode-account","displayName":"VSCode Account","description":"A common Sign-In management extension for VS Code.","license":"SEE LICENSE IN LICENSE.md","icon":"images/Market_AzureAccount_128x.png","repository":{"url":"https://github.com/legomushroom/vscode-vscode-account.git"},"homepage":"https://github.com/legomushroom/vscode-vscode-account/blob/master/README.md","galleryBanner":{"color":"#0072c6","theme":"dark"},"version":"0.8.3","aiKey":"AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217","publisher":"ms-vscode","engines":{"vscode":"^1.31.0"},"categories":["Other"],"keywords":["vscode"],"activationEvents":["*","onCommand:vscode-account.login","onCommand:vscode-account.logout"],"main":"./dist/extension","contributes":{"commands":[{"command":"vscode-account.login","title":"%vscode-account.commands.login%","category":"%vscode-account.commands.account%"},{"command":"vscode-account.logout","title":"%vscode-account.commands.logout%","category":"%vscode-account.commands.account%"}],"menus":{"explorer/context":[],"editor/title/context":[]},"configuration":{"type":"object","title":"VSCode Account configuration","properties":{"vscode-account.showSignedInEmail":{"type":"boolean","default":true,"description":"Whether to show the email address (e.g., in the status bar) of the signed in account."}}}},"scripts":{"vscode:prepublish":"rimraf dist && webpack --mode production","webpack":"rimraf dist && webpack --mode development","webpack-dev":"rimraf dist && webpack --mode development --watch","compile":"tsc -p ./","which":"which tsc","watch":"tsc -watch -p ./","postinstall_1":"node ./node_modules/vscode/bin/install"},"devDependencies":{"@types/form-data":"2.2.1","@types/http-proxy-agent":"2.0.1","@types/keytar":"4.0.1","@types/node":"8.0.26","@types/request":"2.48.1","@types/request-promise":"4.1.42","@types/semver":"5.5.0","@types/ws":"6.0.1","raw-loader":"^2.0.0","rimraf":"2.6.2","ts-loader":"5.3.0","typescript":"3.3.4000","vscode":"1.1.30","webpack":"4.25.1","webpack-cli":"3.1.2"},"dependencies":{"@types/node-fetch":"^2.3.2","adal-node":"0.1.28","bluebird":"^3.5.4","form-data":"2.3.3","http-proxy-agent":"2.1.0","https-proxy-agent":"2.2.1","node-fetch":"^2.3.0","request":"2.88.0","request-promise":"4.2.2","semver":"5.6.0","vscode-extension-telemetry":"0.1.0","vscode-nls":"4.0.0","ws":"6.1.0"}};
+module.exports = {"name":"vscode-account","displayName":"VSCode Account","description":"A common authentication management extension for VS Code.","license":"SEE LICENSE IN LICENSE.md","icon":"images/Market_AzureAccount_128x.png","homepage":"https://github.com/legomushroom/vscode-vscode-account/blob/master/README.md","galleryBanner":{"color":"#0072c6","theme":"dark"},"repository":{"url":"https://github.com/legomushroom/vscode-vscode-account.git"},"version":"0.1.0-dev","aiKey":"AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217","publisher":"ms-vsliveshare","types":"./src/vscode-account.api.d.ts","engines":{"vscode":"^1.31.0"},"categories":["Other"],"keywords":["vscode"],"activationEvents":["*","onCommand:vscode-account.login","onCommand:vscode-account.logout"],"main":"./dist/extension","contributes":{"commands":[{"command":"vscode-account.login","title":"%vscode-account.commands.login%","category":"%vscode-account.commands.account%"},{"command":"vscode-account.logout","title":"%vscode-account.commands.logout%","category":"%vscode-account.commands.account%"}],"menus":{"explorer/context":[],"editor/title/context":[]},"configuration":{"type":"object","title":"VSCode Account configuration","properties":{"vscode-account.showSignedInEmail":{"type":"boolean","default":true,"description":"Whether to show the email address (e.g., in the status bar) of the signed in account."}}}},"scripts":{"vscode:prepublish":"rimraf dist && webpack --mode production","webpack":"rimraf dist && webpack --mode development","webpack-dev":"rimraf dist && webpack --mode development --watch","compile":"tsc -p ./","which":"which tsc","watch":"tsc -watch -p ./","postinstall_1":"node ./node_modules/vscode/bin/install"},"devDependencies":{"@types/form-data":"2.2.1","@types/http-proxy-agent":"2.0.1","@types/keytar":"4.0.1","@types/node":"8.0.26","@types/request":"2.48.1","@types/request-promise":"4.1.42","@types/semver":"5.5.0","@types/ws":"6.0.1","raw-loader":"^2.0.0","rimraf":"2.6.2","ts-loader":"5.3.0","typescript":"3.3.4000","vscode":"1.1.30","webpack":"4.25.1","webpack-cli":"3.1.2"},"dependencies":{"@types/node-fetch":"^2.3.2","adal-node":"0.1.28","bluebird":"^3.5.4","form-data":"2.3.3","http-proxy-agent":"2.1.0","https-proxy-agent":"2.2.1","node-fetch":"^2.3.0","request":"2.88.0","request-promise":"4.2.2","semver":"5.6.0","vscode-extension-telemetry":"0.1.0","vscode-nls":"4.0.0","ws":"6.1.0"}};
 
 /***/ }),
 
@@ -71133,6 +71133,26 @@ const https = __webpack_require__(/*! https */ "https");
 const vscode_1 = __webpack_require__(/*! vscode */ "vscode");
 const codeFlowLogin = __webpack_require__(/*! ./codeFlowLogin */ "./src/codeFlowLogin.ts");
 const signal_1 = __webpack_require__(/*! ./utils/signal */ "./src/utils/signal.ts");
+const bluebird_1 = __webpack_require__(/*! bluebird */ "./node_modules/bluebird/js/release/bluebird.js");
+class CancellableTask {
+    constructor(task, cancellationToken) {
+        this.task = task;
+        this.cancellationToken = cancellationToken;
+        this.signal = new signal_1.Signal();
+    }
+    run() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.task()
+                .then(this.signal.complete.bind(this.signal))
+                .catch(this.signal.reject.bind(this.signal));
+            this.cancellationToken.onCancellationRequested((e) => {
+                this.signal.reject(new bluebird_1.CancellationError(e));
+            });
+            return this.signal.promise;
+        });
+    }
+}
+exports.CancellableTask = CancellableTask;
 const localize = nls.loadMessageBundle();
 const keytarModule = getNodeModule('keytar');
 function getNodeModule(moduleName) {
@@ -71269,8 +71289,11 @@ class VSCodeLoginHelper {
             waitForLogin: () => this.waitForLogin(),
             sessions: [],
             onSessionsChanged: this.onSessionsChanged.event,
-            getTokenOrAskToSignIn: (environment) => {
-                return this.getTokenOrAskToSignIn(environment);
+            getTokenOrAskToSignIn: (options = {}) => {
+                return this.getTokenOrAskToSignIn(options);
+            },
+            askToSignIn: (environment, message) => {
+                return this.askForLogin(environment, message);
             },
             getCachedToken: (environment) => {
                 return this.getCachedToken(environment);
@@ -71279,18 +71302,19 @@ class VSCodeLoginHelper {
                 return this.logout();
             }
         };
-        this.getTokenOrAskToSignIn = (environment = exports.VSSaasEnvironment) => __awaiter(this, void 0, void 0, function* () {
-            environment = environment || exports.VSSaasEnvironment;
-            const token = yield this.getCachedToken(environment);
+        this.getTokenOrAskToSignIn = (options = {}) => __awaiter(this, void 0, void 0, function* () {
+            options = Object.assign({ environment: exports.VSSaasEnvironment, shouldSkipQuestion: false, message: 'Sign in to proceed.' }, options);
+            const token = yield this.getCachedToken(options.environment);
             if (token) {
                 return token;
             }
-            try {
-                return yield this.login(environment, 'login');
+            if (options.shouldSkipQuestion) {
+                try {
+                    return yield this.login(options.environment, 'login');
+                }
+                catch (e) { /* ignore */ }
             }
-            catch (e) {
-                // ignore
-            }
+            return yield this.askForLogin(options.environment, options.message);
         });
         const subscriptions = this.context.subscriptions;
         subscriptions.push(vscode_1.commands.registerCommand('vscode-account.login', (env = exports.VSSaasEnvironment) => this.login(env, 'login').catch(console.error)));
@@ -71352,23 +71376,36 @@ class VSCodeLoginHelper {
                 this.beginLoggingIn();
                 const tenantId = getTenantId();
                 path = 'newLoginCodeFlow';
-                const tokenResponse = yield codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
-                const refreshToken = tokenResponse.refreshToken;
-                const keytar = this.keytar || keytarModule;
-                yield storeRefreshToken(environment, refreshToken, keytar);
-                yield this.updateSessions(environment, [tokenResponse]);
-                this.sendLoginTelemetry(trigger, path, environmentName, 'success');
-                return {
-                    accessToken: tokenResponse.accessToken,
-                    refreshToken: tokenResponse.refreshToken,
-                    expiresIn: tokenResponse.expiresIn,
-                    expiresOn: tokenResponse.expiresOn
+                const progressOptions = {
+                    title: 'Signing in...',
+                    location: vscode_1.ProgressLocation.Notification,
+                    cancellable: true
                 };
+                return yield vscode_1.window.withProgress(progressOptions, (_, cts) => __awaiter(this, void 0, void 0, function* () {
+                    const cancellabeTask = new CancellableTask(() => __awaiter(this, void 0, void 0, function* () {
+                        const tokenResponse = yield codeFlowLogin.login(environment.oauthAppId, environment, false, tenantId, openUri);
+                        const refreshToken = tokenResponse.refreshToken;
+                        const keytar = this.keytar || keytarModule;
+                        yield storeRefreshToken(environment, refreshToken, keytar);
+                        yield this.updateSessions(environment, [tokenResponse]);
+                        this.sendLoginTelemetry(trigger, path, environmentName, 'success');
+                        return {
+                            accessToken: tokenResponse.accessToken,
+                            refreshToken: tokenResponse.refreshToken,
+                            expiresIn: tokenResponse.expiresIn,
+                            expiresOn: tokenResponse.expiresOn
+                        };
+                    }), cts);
+                    return yield cancellabeTask.run();
+                }));
             }
             catch (err) {
                 if (err instanceof VSCodeLoginError && err.reason) {
                     console.error(err.reason);
                     this.sendLoginTelemetry(trigger, path, environmentName, 'error', getErrorMessage(err.reason) || getErrorMessage(err));
+                }
+                else if (err instanceof bluebird_1.CancellationError) {
+                    this.sendLoginTelemetry(trigger, path, environmentName, 'cancel', getErrorMessage(err));
                 }
                 else {
                     this.sendLoginTelemetry(trigger, path, environmentName, 'failure', getErrorMessage(err));
@@ -71478,22 +71515,6 @@ class VSCodeLoginHelper {
             this.onStatusChanged.fire(this.api.status);
         }
     }
-    // private initializeSessions(cache: Cache) {
-    // 	const sessions: Record<string, ISession> = {};
-    // 	for (const { session } of cache.subscriptions) {
-    // 		const { environment, userId, tenantId } = session;
-    // 		const key = `${environment} ${userId} ${tenantId}`;
-    // 		if (!sessions[key]) {
-    // 			sessions[key] = {
-    // 				environment: VSSaasEnvironment,
-    // 				userId,
-    // 				tenantId
-    // 			};
-    // 			this.api.sessions.push(sessions[key]);
-    // 		}
-    // 	}
-    // 	return sessions;
-    // }
     updateSessions(environment, tokenResponses) {
         return __awaiter(this, void 0, void 0, function* () {
             yield clearTokenCache(this.tokenCache);
@@ -71524,14 +71545,16 @@ class VSCodeLoginHelper {
             this.onSessionsChanged.fire();
         });
     }
-    askForLogin(environment = exports.VSSaasEnvironment) {
+    askForLogin(environment = exports.VSSaasEnvironment, message = "Sign in to proceed.") {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.api.status === 'LoggedIn') {
                 return;
             }
             const login = { title: localize('azure-account.login', "Sign In") };
-            const result = yield vscode_1.window.showInformationMessage(localize('azure-account.loginFirst', "Not signed in, sign in first."), login);
-            return result === login && this.login(environment, 'login');
+            const result = yield vscode_1.window.showInformationMessage(localize('vscode-account.loginFirst', message), login);
+            if (result === login) {
+                return yield this.login(environment, 'login');
+            }
         });
     }
     noSubscriptionsFound() {
